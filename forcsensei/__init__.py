@@ -4,6 +4,7 @@
 import numpy as np
 import codecs as cd
 import scipy as sp
+from IPython.display import YouTubeVideo
 
 # define function which will look for lines in the header that start with certain strings
 def find_data_lines(fp):
@@ -374,3 +375,13 @@ def parse_measurements(file):
     Ft=measurement_times(file,Fk,Fj) #estimated time of each measurement point
 
     return H, Hr, M, Fk, Fj, Ft, dH
+
+def play_tutorial(index):
+    
+    #define list of tutorial videos
+    tutorial = ['Z9DAztPG2lc'] #tutorial 1
+    tutorial.append('6kCS_nJC72g') #tutorial 2
+    tutorial.append('fZ0oB2wEBOI') #tutorial 3
+        
+    vid = YouTubeVideo(id = tutorial[index-1],autoplay=True)
+    display(vid)
