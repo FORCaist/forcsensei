@@ -80,7 +80,7 @@ def parse_units(file):
         return 'CGS'
 
 def parse_mass(file):
-    """Function to extract instrument unit settings ('') from FORC data file header
+    """Function to extract sample from FORC data file header
     
     Inputs:
     file: name of data file (string)    
