@@ -52,12 +52,12 @@ def parse_header(file,string):
         for line in lines_that_start_with(string, fp): #find the line starting with the setting name
             idx = line.find('=') #Some file formats may contain an '='
             if idx>-1.: #if '=' found
-                if string.find("N/A") == -1:
+                if line.find("N/A") == -1:
                     output=float(line[idx+1:]) #value taken as everything to right of '='
                 else:
                     output = "N/A"
             else: # '=' not found
-                if string.find("N/A") == -1:
+                if line.find("N/A") == -1:
                     idx = len(string) #length of the setting string 
                     output=float(line[idx+1:])  #value taken as everything to right of the setting name 
                 else:
