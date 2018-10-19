@@ -51,6 +51,7 @@ def parse_header(file,string):
     with cd.open(file,"r",encoding='latin9') as fp: #open the data file (latin9 encoding seems to work, UTF and ASCII don't)
         for line in lines_that_start_with(string, fp): #find the line starting with the setting name
             idx = line.find('=') #Some file formats may contain an '='
+            print(line.find('N/A'))
             if idx>-1.: #if '=' found
                 if line.find('N/A') == -1:
                     output=float(line[idx+1:]) #value taken as everything to right of '='
