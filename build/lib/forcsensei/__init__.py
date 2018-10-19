@@ -88,6 +88,7 @@ def parse_mass(file):
     Outputs:
     Mass in g or N/A
     """
+    output = 'N/A'
     string = 'Mass' #header definition of units
     with cd.open(file,"r",encoding='latin9') as fp: #open the data file (latin9 encoding seems to work, UTF and ASCII don't)
         for line in lines_that_start_with(string, fp): #find the line starting with the setting name
@@ -97,6 +98,11 @@ def parse_mass(file):
             else: # '=' not found
                 idx = len(string) #length of the setting string 
                 output=(line[idx+1:])  #value taken as everything to right of the setting name
+        
+            if output.find('N/A') > -1:
+                output = 'N/A'
+            else:
+                outout = float(output)
 
     return output
 
