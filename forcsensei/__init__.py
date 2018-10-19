@@ -51,7 +51,6 @@ def parse_header(file,string):
     with cd.open(file,"r",encoding='latin9') as fp: #open the data file (latin9 encoding seems to work, UTF and ASCII don't)
         for line in lines_that_start_with(string, fp): #find the line starting with the setting name
             idx = line.find('=') #Some file formats may contain an '='
-            print(line.find('N/A'))
             if idx>-1.: #if '=' found
                 output=float(line[idx+1:]) #value taken as everything to right of '='
             else: # '=' not found
@@ -79,6 +78,27 @@ def parse_units(file):
         return 'SI'
     else:
         return 'CGS'
+
+def parse_mass(file):
+    """Function to extract instrument unit settings ('') from FORC data file header
+    
+    Inputs:
+    file: name of data file (string)    
+
+    Outputs:
+    Mass in g or N/A
+    """
+    string = 'Mass' #header definition of units
+    with cd.open(file,"r",encoding='latin9') as fp: #open the data file (latin9 encoding seems to work, UTF and ASCII don't)
+        for line in lines_that_start_with(string, fp): #find the line starting with the setting name
+            idx = line.find('=') #Some file formats may contain an '='
+            if idx>-1.: #if '=' found
+                output=(line[idx+1:]) #value taken as everything to right of '='
+            else: # '=' not found
+                idx = len(string) #length of the setting string 
+                output=(line[idx+1:])  #value taken as everything to right of the setting name
+
+    return output
 
 def calibration_times(file, Npts):
     """Function to estimate the time at which calibration points were measured in a FORC sequence
