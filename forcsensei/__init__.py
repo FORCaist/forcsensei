@@ -53,16 +53,10 @@ def parse_header(file,string):
             idx = line.find('=') #Some file formats may contain an '='
             print(line.find('N/A'))
             if idx>-1.: #if '=' found
-                if line.find('N/A') == -1:
-                    output=float(line[idx+1:]) #value taken as everything to right of '='
-                else:
-                    output = 'N/A'
+                output=float(line[idx+1:]) #value taken as everything to right of '='
             else: # '=' not found
-                if line.find('N/A') == -1:
-                    idx = len(string) #length of the setting string 
-                    output=float(line[idx+1:])  #value taken as everything to right of the setting name 
-                else:
-                    output = 'N/A' #return N/A if mass is not available
+                idx = len(string) #length of the setting string 
+                output=float(line[idx+1:])  #value taken as everything to right of the setting name 
 
     return output
 
