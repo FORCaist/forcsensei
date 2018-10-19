@@ -1,0 +1,8 @@
+README.md
+setup.cfg
+setup.py
+forcsensei/__init__.py
+forcsensei.egg-info/PKG-INFO
+forcsensei.egg-info/SOURCES.txt
+forcsensei.egg-info/dependency_links.txt
+forcsensei.egg-info/top_level.txt

@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: forcsensei
+Version: 0.0.1
+Summary: A small example of forcsensei
+Home-page: https://github.com/FORCaist
+Author: FORCaist
+Author-email: FORCaist.user@gmail.com
+License: UNKNOWN
+Description: # Example Package
+        
+        This is a simple example of forcsensei.
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
