@@ -102,7 +102,7 @@ def parse_mass(file):
             if output.find('N/A') > -1:
                 output = 'N/A'
             else:
-                outout = float(output)
+                output = float(output)
 
     return output
 
