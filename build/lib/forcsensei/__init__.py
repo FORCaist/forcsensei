@@ -104,8 +104,6 @@ def parse_mass(file):
             else:
                 output = float(output)
 
-    output = 3.142
-
     return output
 
 def calibration_times(file, Npts):
