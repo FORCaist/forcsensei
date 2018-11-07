@@ -5,6 +5,41 @@ import numpy as np
 import codecs as cd
 import scipy as sp
 from IPython.display import YouTubeVideo
+import matplotlib.pyplot as plt
+import matplotlib.style
+import matplotlib as mpl
+from google.colab import files
+mpl.rcParams['pdf.fonttype'] = 42
+from termcolor import cprint
+
+### NEW CODE
+def sample_details(fn):
+
+  sample = "."
+  if len(fn.split(sample))>1:
+    sample = sample.join(fn.split(sample)[:-1])
+  else:
+    sample = fn.split(sample)
+  
+  if type(sample) is list:
+    sample=sample[0]
+  
+  units=parse_units(fn)
+  mass=parse_mass(fn)
+  
+  return sample, units, mass
+
+def load_file():
+  
+  uploaded = files.upload()
+  for fn in uploaded.keys():
+    print('User uploaded FORC file "{name}"'.format(name=fn))
+  
+  sample, units, mass = sample_details(fn)
+  
+  return sample, units, mass
+
+###
 
 # define function which will look for lines in the header that start with certain strings
 def find_data_lines(fp):
