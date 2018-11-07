@@ -39,6 +39,114 @@ def load_file():
   
   return sample, units, mass
 
+def check_pp(pp):
+  
+  print('Preprocessing setting check')
+  print('---------------------------')
+  print(' ')
+  
+  status = 1
+  # test: sample name
+  if type(pp["sample name"]) is not str:
+    status = -1
+    cprint('Error: Sample name is not a character string','red')
+  else:
+    cprint('Sample name: '+pp["sample name"],'green')
+  
+  # test: sample mass
+  if (pp["sample mass (g)"] == 'N/A'):
+    cprint('Sample mass (g): '+ pp["sample mass (g)"],'green')
+  elif (type(pp["sample mass (g)"]) is not float) or (pp["sample mass (g)"]<=0.0):
+    status = -1
+    cprint('Error: Sample mass is not a valid number','red')
+  else:
+    cprint('Sample mass (g): '+str(pp["sample mass (g)"]),'green')
+
+  # test: units
+  if (pp["units"] != 'SI') and (pp["units"] != 'Cgs'):
+    status = -1
+    cprint('Error: Units should be "SI" or "Cgs"','red')
+  elif (pp["units"] == 'SI') and (units == 'Cgs'):
+    status = 0
+    cprint('Inconsistency: Units do not match those in the data file','blue')
+  elif (pp["units"] == 'Cgs') and (units == 'SI'):
+    status = 0
+    cprint('Inconsistency: Units do not match those in the data file','blue')
+  else:
+    cprint('Units: '+str(pp["units"]),'green')
+
+  # test: mass normalization
+  if (pp["mass normalize"] != True) and (pp["mass normalize"] != False):
+    status = -1
+    cprint('Error: Mass normalization should be True or False','red')
+  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] == 'N/A'):
+    status = -1
+    cprint('Error: Mass normalization requested, but no mass provided','red')
+  else:
+    cprint('Mass normalize: '+str(pp["mass normalize"]),'green')
+  
+  # test: drift correction
+  if (pp["drift correction"] != True) and (pp["drift correction"] != False):
+    status = -1
+    cprint('Error: Drift correction should be True or False','red')
+  else:
+    cprint('Drift correction: '+str(pp["drift correction"]),'green')
+  
+  # test: high field slope correction
+  if (pp["high field slope correction"] != True) and (pp["high field slope correction"] != False):
+    status = -1
+    cprint('Error: High field slope correction should be True or False','red')
+  else:
+    cprint('High field slope correction: '+str(pp["high field slope correction"]),'green')
+  
+  # test: first point artifact
+  if (pp["first point artifact"] != True) and (pp["first point artifact"] != False):
+    status = -1
+    cprint('Error: First point artifact should be True or False','red')
+  else:
+    cprint('First point artifact: '+str(pp["first point artifact"]),'green')
+
+  # test: replace outliers
+  if (pp["replace outliers"] != True) and (pp["replace outliers"] != False):
+    status = -1
+    cprint('Error: Replace outliers should be True or False','red')
+  else:
+    cprint('Replace outliers: '+str(pp["replace outliers"]),'green')
+    
+  # test: subtract lower branch
+  if (pp["subtract lower branch"] != True) and (pp["subtract lower branch"] != False):
+    status = -1
+    cprint('Error: Subtract lower branch should be True or False','red')
+  else:
+    cprint('Subtract lower branch: '+str(pp["subtract lower branch"]),'green')
+
+   # test: plots
+  if (pp["plots"] != True) and (pp["plots"] != False):
+    status = -1
+    cprint('Error: Plots option should be True or False','red')
+  else:
+    cprint('Plots: '+str(pp["plots"]),'green')
+  cprint(' ')
+  
+  if status == -1:  
+    cprint('--------------------------------------------------------------','red')
+    cprint('There are errors in your settings, your analysis will not run!','red')
+    cprint('A video tutorial on these settings is provided above.','red')
+    cprint('--------------------------------------------------------------','red')
+  
+  if status == 0:  
+    cprint('-----------------------------------------------------------------------','blue')
+    cprint('There are inconsistencies in your settings, but your analysis will run!','blue')
+    cprint('A video tutorial on these settings is provided above.','blue')
+    cprint('-----------------------------------------------------------------------','blue')
+  
+  if status == 1:  
+    cprint('-------------------------------------------------------','green')
+    cprint('There are no errors or inconsistencies in your settings','green')
+    cprint('Your analysis is ready to run.','green')
+    cprint('-------------------------------------------------------','green')
+
+
 ###
 
 # define function which will look for lines in the header that start with certain strings
