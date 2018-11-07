@@ -63,17 +63,17 @@ def check_pp(pp):
     cprint('Sample mass (g): '+str(pp["sample mass (g)"]),'green')
 
   # test: units
-  if (pp["units"] != 'SI') and (pp["units"] != 'Cgs'):
-    status = -1
-    cprint('Error: Units should be "SI" or "Cgs"','red')
-  elif (pp["units"] == 'SI') and (units == 'Cgs'):
-    status = 0
-    cprint('Inconsistency: Units do not match those in the data file','blue')
-  elif (pp["units"] == 'Cgs') and (units == 'SI'):
-    status = 0
-    cprint('Inconsistency: Units do not match those in the data file','blue')
-  else:
-    cprint('Units: '+str(pp["units"]),'green')
+  #if (pp["units"] != 'SI') and (pp["units"] != 'Cgs'):
+  #  status = -1
+  #  cprint('Error: Units should be "SI" or "Cgs"','red')
+  #elif (pp["units"] == 'SI') and (units == 'Cgs'):
+  #  status = 0
+  #  cprint('Inconsistency: Units do not match those in the data file','blue')
+  #elif (pp["units"] == 'Cgs') and (units == 'SI'):
+  #  status = 0
+  #  cprint('Inconsistency: Units do not match those in the data file','blue')
+  #else:
+  #  cprint('Units: '+str(pp["units"]),'green')
 
   # test: mass normalization
   if (pp["mass normalize"] != True) and (pp["mass normalize"] != False):
