@@ -37,9 +37,12 @@ def load_file():
   
   sample, units, mass = sample_details(fn)
   
-  return sample, units, mass
+  return sample, units, mass, fn
 
-def check_pp(pp):
+def check_pp(fn, pp):
+  
+  sample0, units0, mass0 = sample_details(fn)
+
   
   print('Preprocessing setting check')
   print('---------------------------')
@@ -66,10 +69,10 @@ def check_pp(pp):
   if (pp["units"] != 'SI') and (pp["units"] != 'Cgs'):
     status = -1
     cprint('Error: Units should be "SI" or "Cgs"','red')
-  elif (pp["units"] == 'SI') and (units == 'Cgs'):
+  elif (pp["units"] == 'SI') and (units0 == 'Cgs'):
     status = 0
     cprint('Inconsistency: Units do not match those in the data file','blue')
-  elif (pp["units"] == 'Cgs') and (units == 'SI'):
+  elif (pp["units"] == 'Cgs') and (units0 == 'SI'):
     status = 0
     cprint('Inconsistency: Units do not match those in the data file','blue')
   else:
