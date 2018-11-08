@@ -158,8 +158,8 @@ def check_pp(fn, pp):
 def preprocessing(pp,fn):
   
   #parse measurements
-  H, Hr, M, Fk, Fj, Ft, dH = fs.parse_measurements(fn)
-  Hcal, Mcal, tcal = fs.parse_calibration(fn)
+  H, Hr, M, Fk, Fj, Ft, dH = parse_measurements(fn)
+  Hcal, Mcal, tcal = parse_calibration(fn)
   
   # make a data dictionary for passing large numbers of arguments
   # should unpack in functions for consistency
