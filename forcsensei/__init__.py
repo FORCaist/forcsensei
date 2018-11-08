@@ -179,7 +179,7 @@ def preprocessing(pp,fn):
   if pp["drift correction"] == True:
     data = drift_correction(data)   
   
-  data = convert_units(pp,data)
+  data = convert_units(pp,data,fn)
   
   if pp["mass normalize"] == True:
     data = mass_normalize(pp,data)
