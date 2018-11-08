@@ -443,7 +443,7 @@ def remove_outliers(data):
     
     return data
   
-  def lowerbranch_subtract(data):
+def lowerbranch_subtract(data):
     """Function to subtract lower hysteresis branch from FORC magnetizations
     
     Inputs:
