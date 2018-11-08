@@ -43,6 +43,7 @@ def check_pp(fn, pp):
   
   sample0, units0, mass0 = sample_details(fn)
 
+  print(mass0)
   
   print('Preprocessing setting check')
   print('---------------------------')
@@ -85,6 +86,9 @@ def check_pp(fn, pp):
   elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] == 'N/A'):
     status = -1
     cprint('Error: Mass normalization requested, but no mass provided','red')
+  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] != mass0):
+    status = 0
+    cprint('Inconsistency: Provided mass and data file mass are different','blue')
   else:
     cprint('Mass normalize: '+str(pp["mass normalize"]),'green')
   
