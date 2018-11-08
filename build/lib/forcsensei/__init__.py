@@ -225,8 +225,10 @@ def drift_correction(data):
   return data
 
 
-def convert_units(pp,data):
+def convert_units(pp,data,fn):
   
+  _, units, _ = sample_details(fn)
+
   if (pp["units"] == 'SI') and (units == 'Cgs'): #convert to CGS
     H = data["H"]
     M = data["M"]
@@ -411,7 +413,7 @@ def remove_outliers(data):
     R = Mstst-Mst #estimated residuals
     Rcrit = np.std(R)*2.5 #set cut-off at 2.5 sigma
     Fmask=np.ones(M.size) #initialize mask
-    Fmask[np.abs(R)>Rcrit]=0.0;
+    Fmask[np.abs(R)>Rcrit]=0.0
     
     idx = (np.abs(R)<Rcrit) #points flagged as outliers
     
