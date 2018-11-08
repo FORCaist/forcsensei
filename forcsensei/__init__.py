@@ -86,7 +86,7 @@ def check_pp(fn, pp):
   elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] == 'N/A'):
     status = -1
     cprint('Error: Mass normalization requested, but no mass provided','red')
-  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] != mass0):
+  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] != mass0) and (mass0 != 'N/A'):
     status = 0
     cprint('Inconsistency: Provided mass and data file mass are different','blue')
   else:
