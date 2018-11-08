@@ -154,6 +154,503 @@ def check_pp(fn, pp):
     cprint('-------------------------------------------------------','green')
 
 
+### DATA PREPROCESSING
+def preprocessing(pp,fn):
+  
+  #parse measurements
+  H, Hr, M, Fk, Fj, Ft, dH = fs.parse_measurements(fn)
+  Hcal, Mcal, tcal = fs.parse_calibration(fn)
+  
+  # make a data dictionary for passing large numbers of arguments
+  # should unpack in functions for consistency
+  data = {
+    "H":H,
+    "Hr": Hr,
+    "M": M,
+    "dH": dH,
+    "Fk": Fk,
+    "Fj": Fj,
+    "Ft": Ft,
+    "Hcal": Hcal,
+    "Mcal": Mcal,
+    "tcal": tcal  
+  }
+  
+  if pp["drift correction"] == True:
+    data = drift_correction(data)   
+  
+  data = convert_units(pp,data)
+  
+  if pp["mass normalize"] == True:
+    data = mass_normalize(pp,data)
+  
+  if pp["high field slope correction"] == True:
+    data = slope_correction(data)
+  
+  if pp["first point artifact"] == True:
+    data = remove_fpa(data)
+    
+  if pp["last point artifact"] == True:
+    data = remove_lpa(data)
+    
+  if pp["replace outliers"] == True:
+    data = remove_outliers(data)
+  
+  if pp["subtract lower branch"] == True:
+    data = lowerbranch_subtract(data)
+  
+  if pp["plots"] == True:
+    plot_hysteresis(pp,data)
+    if pp["subtract lower branch"] == True:
+      plot_delta_hysteresis(pp,data)
+    
+  return data
+
+
+# drift correction
+def drift_correction(data):
+  
+  #unpack
+  M = data["M"]
+  Mcal = data["Mcal"]    
+  Ft = data["Ft"]
+  tcal = data["tcal"]
+  
+  #perform drift correction
+  M=M*Mcal[0]/np.interp(Ft,tcal,Mcal,left=np.nan) #drift correction
+  
+  #repack
+  data["M"] = M
+  
+  return data
+
+
+def convert_units(pp,data):
+  
+  if (pp["units"] == 'SI') and (units == 'Cgs'): #convert to CGS
+    H = data["H"]
+    M = data["M"]
+    
+    H = H/1E4 #convert T into Oe
+    M = M/1E3
+      
+    data["H"] = H
+    data["M"] = M
+    
+  elif (pp["units"] == 'Cgs') and (units == 'SI'): #convert to CGS
+    H = data["H"]
+    M = data["M"]
+    
+    H = H*1E4 #convert Oe into T
+    M = M*1E3
+      
+    data["H"] = H
+    data["M"] = M
+      
+  return data
+
+def mass_normalize(pp,data):
+  
+  M = data["M"]
+    
+  if (pp["units"] == 'SI'): 
+    M = M / (pp["sample mass (g)"]/1000.) #convert to AM^2/kg
+      
+  if (pp["units"] == 'Cgs'): 
+    M = M / pp["sample mass (g)"] #convert to emu/g
+      
+  data["M"] = M
+      
+  return data
+
+
+# slope correction
+def slope_correction(data):
+  
+  #unpack
+  H = data["H"]
+  M = data["M"]
+  
+  # high field slope correction
+  Hidx = H > 0.8 * np.max(H)
+  p = np.polyfit(H[Hidx],M[Hidx],1)
+  M = M - H*p[0]
+  
+  #repack
+  data["M"]=M
+  
+  return data
+
+# remove FPA
+def remove_fpa(data):
+    
+    #unpack
+    Fj = data["Fj"]
+    H = data["H"]    
+    Hr = data["Hr"]
+    M = data["M"]
+    Fk = data["Fk"]
+    Fj = data["Fj"]
+    Ft = data["Ft"]
+    
+    #remove first point artifact
+    idx=((Fj==1.0))
+    H=H[~idx]
+    Hr=Hr[~idx]
+    M=M[~idx]
+    Fk=Fk[~idx]
+    Fj=Fj[~idx]
+    Ft=Ft[~idx]
+    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
+    Fj=Fj-1.
+    
+    #repack
+    data["Fj"] = Fj
+    data["H"] = H   
+    data["Hr"] = Hr
+    data["M"] = M
+    data["Fk"] = Fk
+    data["Fj"] = Fj
+    data["Ft"] = Ft        
+    
+    return data
+  
+# remove lPA
+def remove_lpa(data):
+    
+    #unpack
+    Fj = data["Fj"]
+    H = data["H"]    
+    Hr = data["Hr"]
+    M = data["M"]
+    Fk = data["Fk"]
+    Fj = data["Fj"]
+    Ft = data["Ft"]
+    
+    #remove last point artifact
+    Nforc = int(np.max(Fk))
+    W = np.ones(Fk.size)
+    
+    for i in range(Nforc):      
+      Fj_max=np.sum((Fk==i))
+      idx = ((Fk==i) & (Fj==Fj_max))
+      W[idx]=0.0
+    
+    idx = (W > 0.5)
+    H=H[idx]
+    Hr=Hr[idx]
+    M=M[idx]
+    Fk=Fk[idx]
+    Fj=Fj[idx]
+    Ft=Ft[idx]
+    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
+    
+    #repack
+    data["Fj"] = Fj
+    data["H"] = H   
+    data["Hr"] = Hr
+    data["M"] = M
+    data["Fk"] = Fk
+    data["Fj"] = Fj
+    data["Ft"] = Ft        
+    
+    return data
+  
+def remove_outliers(data):
+    
+    """Function to replace "bad" measurements to zero.
+    
+    Inputs:
+    H: Measurement applied field [float, SI units]
+    Hr: Reversal field [float, SI units]
+    M: Measured magnetization [float, SI units]
+    Fk: Index of measured FORC (int)
+    Fj: Index of given measurement within a given FORC (int)
+    
+    Outputs:
+    Fmask: mask, accepted points = 1, rejected points = 0
+    R: residuals from fitting process
+    Rcrit: critical residual threshold 
+    
+    """
+    #unpack variables
+    H = data["H"]    
+    Hr = data["Hr"]
+    M = data["M"]
+    Fk = data["Fk"]
+    Fj = data["Fj"]
+    
+    SF=2 #half width of the smooth (full width = 2SF+1)
+    Mst=np.zeros(M.size)*np.nan #initialize output of smoothed magnetizations
+    for i in range(M.size): #loop through each measurement
+        idx=((Fk==Fk[i]) & (Fj<=Fj[i]+SF) & (Fj>=Fj[i]-SF)) #finding smoothing window in terms of H
+        Npts=np.sum(idx) #check enough points are available (may not be the case as edges)
+        if Npts>3:
+            #create centered quadratic design matrix WRT H
+            A = np.concatenate((np.ones(Npts)[:,np.newaxis],\
+                                (H[idx]-H[i])[:,np.newaxis],\
+                                ((H[idx]-H[i])**2)[:,np.newaxis]),axis=1)
+            Mst[i] = np.linalg.lstsq(A,M[idx],rcond=None)[0][0] #regression estimate of M
+        else:
+            Mst[i] = M[i] #not enough points, so used M
+
+    Mstst=np.zeros(M.size)*np.nan
+    for i in range(M.size):
+        idx=((Fk<=Fk[i]+SF) & (Fk>=Fk[i]-SF)  & (Fk[i]-Fk+(Fj-Fj[i])==0))
+        Npts=np.sum(idx)
+        if Npts>3:
+            #create centered quadratic design matrix WRT Hr
+            A = np.concatenate((np.ones(Npts)[:,np.newaxis],\
+                                (Hr[idx]-Hr[i])[:,np.newaxis],\
+                                ((Hr[idx]-Hr[i])**2)[:,np.newaxis]),axis=1)
+            Mstst[i] = np.linalg.lstsq(A,Mst[idx],rcond=None)[0][0] #regression estimate of Mst
+        else: 
+            Mstst[i] = Mst[i] #not enough points, so used Mst
+            
+    
+    R = Mstst-Mst #estimated residuals
+    Rcrit = np.std(R)*2.5 #set cut-off at 2.5 sigma
+    Fmask=np.ones(M.size) #initialize mask
+    Fmask[np.abs(R)>Rcrit]=0.0;
+    
+    idx = (np.abs(R)<Rcrit) #points flagged as outliers
+    
+    #remove points deemed to be outliers
+    H = H[idx]
+    Hr = Hr[idx]
+    M = M[idx]
+    Fk = Fk[idx]
+    Fj = Fj[idx]
+      
+    #reset indicies as required
+    Fk = Fk - np.min(Fk)+1
+  
+    Nforc = int(np.max(Fk))
+    for i in range(Nforc):
+      idx = (Fk == i)
+      idx0 = np.argsort(Fj[idx])
+      for i in range(idx.size):
+        Fj[idx[idx0[i]]] = i+1
+    
+    #repack variables
+    H = data["H"]    
+    Hr = data["Hr"]
+    M = data["M"]
+    Fk = data["Fk"]
+    Fj = data["Fj"]
+    
+    
+    
+    return data
+  
+  def lowerbranch_subtract(data):
+    """Function to subtract lower hysteresis branch from FORC magnetizations
+    
+    Inputs:
+    H: Measurement applied field [float, SI units]
+    Hr: Reversal field [float, SI units]
+    M: Measured magnetization [float, SI units]
+    Fk: Index of measured FORC (int)
+    Fj: Index of given measurement within a given FORC (int)
+    
+    Outputs:
+    M: lower branch subtracted magnetization [float, SI units]
+   
+    
+    """
+    
+    #unpack
+    H = data["H"]    
+    Hr = data["Hr"]
+    M = data["M"]
+    Fk = data["Fk"]
+    Fj = data["Fj"]
+    
+    idx=(Fj==1) #define the upper branch based on the 1st measurement point in each FORC
+    Hupper=-H[idx] #upper branch applied field (minus is to convert to lower branch)
+    Mupper=-M[idx] #upper branch magnetization (minus is to convert to lower branch)
+
+    idx=(Fk==np.max(Fk)) #use the last FORC to represent the lower branch
+    Hlower=H[idx] #lower branch applied field
+    Mlower=M[idx] #lower branch magnetization
+
+    #adjust offset between upper and lower branch if required
+    Mtest=Mupper-np.interp(Hlower[-1],Hupper,Mupper,left=np.nan,right=np.nan)+Mlower[-1]
+    idx=Hupper>Hlower[-1]
+    Hupper=Hupper[idx]
+    Mupper=Mtest[idx]
+
+    Hlower=np.concatenate((Hlower,Hupper)) #combine fields
+    Mlower=np.concatenate((Mlower,Mupper)) #correct upper offset and combine magnetizations
+    
+    Mcorr=M-np.interp(H,Hlower,Mlower,left=np.nan,right=np.nan) #subtracted lower branch from FORCs via interpolation
+
+    Fk=Fk[~np.isnan(Mcorr)] #remove any nan
+    Fj=Fj[~np.isnan(Mcorr)] #remove any nan
+    H=H[~np.isnan(Mcorr)] #remove any nan
+    Hr=Hr[~np.isnan(Mcorr)] #remove any nan
+    M=M[~np.isnan(Mcorr)] #remove any nan
+    Mcorr = Mcorr[~np.isnan(Mcorr)] #remove any nan
+    
+    #repack
+    data["H"] = H    
+    data["Hr"] = Hr
+    data["M"] = M
+    data["Fk"] = Fk
+    data["Fj"] = Fj
+    data["DM"] = Mcorr
+    
+    
+    return data
+  
+def plot_hysteresis(pp,data):
+
+  #unpack 
+  sample = pp["sample name"]
+  M = data["M"]
+  H = data["H"]
+  Fk = data["Fk"]
+
+  mpl.style.use('seaborn-whitegrid')
+  hfont = {'fontname':'STIXGeneral'}
+
+  fig, ax = plt.subplots(figsize=(8,8))
+
+  for i in range(5,int(np.max(Fk)),7):
+    
+    if pp["units"] == "Cgs":
+      ax.plot(H[Fk==i],M[Fk==i],'-k')
+    else:
+      ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
+
+  ax.grid(False)
+  ax.minorticks_on()
+  ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+  ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
+
+  ax.spines['left'].set_position('zero')
+  ax.spines['left'].set_color('k')
+
+  # turn off the right spine/ticks
+  ax.spines['right'].set_color('none')
+  ax.yaxis.tick_left()
+  ylim=np.max(np.abs(ax.get_ylim()))
+  ax.set_ylim([-ylim,ylim])
+  
+  #ax.set_ylim([-1,1])
+  yticks0 = ax.get_yticks()
+  yticks = yticks0[yticks0 != 0]
+  ax.set_yticks(yticks)
+  
+  # set the y-spine
+  ax.spines['bottom'].set_position('zero')
+  ax.spines['bottom'].set_color('k')
+
+  # turn off the top spine/ticks
+  ax.spines['top'].set_color('none')
+  ax.xaxis.tick_bottom()
+  xmax = np.max(np.abs(ax.get_xlim()))
+  ax.set_xlim([-xmax,xmax])
+  #Xticks = ax.get_xticks()
+  #Xidx = np.argwhere(np.abs(Xticks)>0.01)
+  #ax.set_xticks(Xticks[Xidx])
+
+  #label x-axis according to unit system
+  if pp["units"]=="Cgs":
+    ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+  else:
+    ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+
+  #label y-axis according to unit system
+  if ((pp["units"]=="SI") and (pp["mass normalize"] == True)):
+    ax.set_ylabel('M [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="SI") and (pp["mass normalize"] == False)): 
+    ax.set_ylabel('M [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == True)): 
+    ax.set_ylabel('M [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
+    ax.set_ylabel('M [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+
+  
+  #plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
+  #files.download(sample+'_hys.pdf')
+
+  plt.show()
+  
+  
+def plot_delta_hysteresis(pp,data):
+
+  #unpack 
+  sample = pp["sample name"]
+  M = data["DM"]
+  H = data["H"]
+  Fk = data["Fk"]
+
+  mpl.style.use('seaborn-whitegrid')
+  hfont = {'fontname':'STIXGeneral'}
+
+  fig, ax = plt.subplots(figsize=(8,8))
+
+  for i in range(5,int(np.max(Fk)),7):
+    
+    if pp["units"] == "Cgs":
+      ax.plot(H[Fk==i],M[Fk==i],'-k')
+    else:
+      ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
+      
+  ax.grid(False)
+  ax.minorticks_on()
+  ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+  ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
+
+  ax.spines['left'].set_position('zero')
+  ax.spines['left'].set_color('k')
+
+  # turn off the right spine/ticks
+  ax.spines['right'].set_color('none')
+  ax.yaxis.tick_left()
+  #ax.set_ylabel('M / M$_0$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  ylim=np.max(np.abs(ax.get_ylim()))
+  ax.set_ylim([-ylim*0.1,ylim])
+  yticks0 = ax.get_yticks()
+  yticks = yticks0[yticks0 != 0]
+  ax.set_yticks(yticks)
+  
+  # set the y-spine
+  ax.spines['bottom'].set_position('zero')
+  ax.spines['bottom'].set_color('k')
+
+  # turn off the top spine/ticks
+  ax.spines['top'].set_color('none')
+  ax.xaxis.tick_bottom()
+  #ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+  xmax = np.max(np.abs(ax.get_xlim()))
+  ax.set_xlim([-xmax,xmax])
+  Xticks = ax.get_xticks()
+  Xidx = np.argwhere(np.abs(Xticks)>0.01)
+  ax.set_xticks(Xticks[Xidx])
+
+   #label x-axis according to unit system
+  if pp["units"]=="Cgs":
+    ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+  else:
+    ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+
+  #label y-axis according to unit system
+  if ((pp["units"]=="SI") and (pp["mass normalize"] == True)):
+    ax.set_ylabel('M - Mhys [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="SI") and (pp["mass normalize"] == False)): 
+    ax.set_ylabel('M - Mhys [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == True)): 
+    ax.set_ylabel('M - Mhys [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
+    ax.set_ylabel('M - Mhys [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+  
+  #plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
+  #files.download(sample+'_delta.pdf')
+
+  plt.show()
+
 ###
 
 # define function which will look for lines in the header that start with certain strings
