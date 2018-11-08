@@ -133,6 +133,14 @@ def check_pp(fn, pp):
     cprint('Error: Plots option should be True or False','red')
   else:
     cprint('Plots: '+str(pp["plots"]),'green')
+  
+  # test: save plots
+  if (pp["save plots"] != True) and (pp["save plots"] != False):
+    status = -1
+    cprint('Error: Save plots option should be True or False','red')
+  else:
+    cprint('Save plots: '+str(pp["save plots"]),'green')  
+  
   cprint(' ')
   
   if status == -1:  
@@ -573,9 +581,9 @@ def plot_hysteresis(pp,data):
   elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
     ax.set_ylabel('M [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
-  
-  #plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
-  #files.download(sample+'_hys.pdf')
+  if pp["save plots"] == True:
+      plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
+      files.download(sample+'_hys.pdf')
 
   plt.show()
   
@@ -648,8 +656,9 @@ def plot_delta_hysteresis(pp,data):
   elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
     ax.set_ylabel('M - Mhys [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   
-  #plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
-  #files.download(sample+'_delta.pdf')
+  if pp["save plots"] == True:
+    plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
+    files.download(sample+'_delta.pdf')
 
   plt.show()
 
