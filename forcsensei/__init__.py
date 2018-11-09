@@ -42,8 +42,6 @@ def load_file():
 def check_pp(fn, pp):
   
   sample0, units0, mass0 = sample_details(fn)
-
-  print(mass0)
   
   print('Preprocessing setting check')
   print('---------------------------')
