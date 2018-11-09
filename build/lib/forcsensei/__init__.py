@@ -1063,7 +1063,7 @@ def parse_measurements(file):
 def play_tutorial(index):
     
     #define list of tutorial videos
-    tutorial = ['Z9DAztPG2lc'] #tutorial 1
+    tutorial = ['ilyS6K4ry3U'] #tutorial 1
     tutorial.append('6kCS_nJC72g') #tutorial 2
     tutorial.append('fZ0oB2wEBOI') #tutorial 3
         
