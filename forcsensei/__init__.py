@@ -8,7 +8,7 @@ from IPython.display import YouTubeVideo
 import matplotlib.pyplot as plt
 import matplotlib.style
 import matplotlib as mpl
-from google.colab import files
+#from google.colab import files
 mpl.rcParams['pdf.fonttype'] = 42
 from termcolor import cprint
 
@@ -29,15 +29,15 @@ def sample_details(fn):
   
   return sample, units, mass
 
-def load_file():
+#def load_file():
   
-  uploaded = files.upload()
-  for fn in uploaded.keys():
-    print('User uploaded FORC file "{name}"'.format(name=fn))
+#  uploaded = files.upload()
+#  for fn in uploaded.keys():
+#    print('User uploaded FORC file "{name}"'.format(name=fn))
   
-  sample, units, mass = sample_details(fn)
+#  sample, units, mass = sample_details(fn)
   
-  return sample, units, mass, fn
+#  return sample, units, mass, fn
 
 def check_pp(fn, pp):
   
