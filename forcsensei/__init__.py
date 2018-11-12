@@ -233,9 +233,9 @@ def drift_correction(data):
 
 def convert_units(pp,data,fn):
   
-  _, units, _ = sample_details(fn)
+  _, unit, _ = sample_details(fn)
 
-  if (pp["units"] == 'SI') and (units == 'Cgs'): #convert to CGS
+  if (pp["unit"] == 'SI') and (unit == 'Cgs'): #convert to CGS
     H = data["H"]
     M = data["M"]
     
@@ -245,7 +245,7 @@ def convert_units(pp,data,fn):
     data["H"] = H
     data["M"] = M
     
-  elif (pp["units"] == 'Cgs') and (units == 'SI'): #convert to CGS
+  elif (pp["unit"] == 'Cgs') and (unit == 'SI'): #convert to CGS
     H = data["H"]
     M = data["M"]
     
@@ -261,11 +261,11 @@ def mass_normalize(pp,data):
   
   M = data["M"]
     
-  if (pp["units"] == 'SI'): 
-    M = M / (pp["sample mass (g)"]/1000.) #convert to AM^2/kg
+  if (pp["unit"] == 'SI'): 
+    M = M / (pp["mass"]/1000.) #convert to AM^2/kg
       
-  if (pp["units"] == 'Cgs'): 
-    M = M / pp["sample mass (g)"] #convert to emu/g
+  if (pp["unit"] == 'Cgs'): 
+    M = M / pp["mass"] #convert to emu/g
       
   data["M"] = M
       
@@ -514,7 +514,7 @@ def lowerbranch_subtract(data):
 def plot_hysteresis(pp,data):
 
   #unpack 
-  sample = pp["sample name"]
+  sample = pp["name"]
   M = data["M"]
   H = data["H"]
   Fk = data["Fk"]
@@ -526,7 +526,7 @@ def plot_hysteresis(pp,data):
 
   for i in range(5,int(np.max(Fk)),7):
     
-    if pp["units"] == "Cgs":
+    if pp["unit"] == "Cgs":
       ax.plot(H[Fk==i],M[Fk==i],'-k')
     else:
       ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
@@ -564,24 +564,24 @@ def plot_hysteresis(pp,data):
   #ax.set_xticks(Xticks[Xidx])
 
   #label x-axis according to unit system
-  if pp["units"]=="Cgs":
+  if pp["unit"]=="Cgs":
     ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
     ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
 
   #label y-axis according to unit system
-  if ((pp["units"]=="SI") and (pp["mass normalize"] == True)):
+  if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
     ax.set_ylabel('M [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="SI") and (pp["mass normalize"] == False)): 
+  elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == True)): 
+  elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
     ax.set_ylabel('M [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
+  elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
-  if pp["save plots"] == True:
-      plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
-      files.download(sample+'_hys.pdf')
+  #if pp["plots"] == 'Plot results and download':
+  #    plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
+  #    files.download(sample+'_hys.pdf')
 
   plt.show()
   
