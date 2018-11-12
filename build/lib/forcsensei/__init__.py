@@ -645,7 +645,7 @@ def plot_delta_hysteresis(pp,data):
     ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
 
   #label y-axis according to unit system
-  if ((pp["unit"]=="SI") and (pp["mass"] >0 .0)):
+  if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
     ax.set_ylabel('M - Mhys [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M - Mhys [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
