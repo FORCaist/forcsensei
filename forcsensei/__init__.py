@@ -5,12 +5,227 @@ import numpy as np
 import codecs as cd
 import scipy as sp
 from IPython.display import YouTubeVideo
+import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import matplotlib.style
 import matplotlib as mpl
 #from google.colab import files
 mpl.rcParams['pdf.fonttype'] = 42
 from termcolor import cprint
+
+### NEW CODE INCLUDING WIDGETS
+def preprocessing_options(fn):
+
+    #Get measurement information from file
+    sample, units, mass = fs.sample_details(fn)
+    
+    ## horizontal line
+    hline = widgets.HTML(
+        value = "<hr>",
+    )
+
+    ## SAMPLE NAME
+    sample_text = widgets.HTML(
+        value = "<b>Sample name -</b> input sample name",
+    )
+
+    sample_widge = widgets.Text(value=sample, disabled=False)
+
+    display(sample_text,sample_widge,hline)
+
+    ## SAMPLE MASS
+    mass_text = widgets.HTML(
+        value = "<b>Sample mass -</b> input sample mass in grams (enter -1 to disable mass normalization)",
+    )
+
+    if mass == "N\A":
+        mass_widge = widgets.FloatText(value=-1, disabled=False)
+    else:
+        mass_widge = widgets.FloatText(value=mass, disabled=False)
+    
+    display(mass_text,mass_widge,hline)
+
+    ## CALCULATION UNITS
+    unit_text = widgets.HTML(
+        value = "<b>Units -</b> Select calculation units",
+    )
+
+    unit_widge = widgets.RadioButtons(
+        options=['SI', 'Cgs'],
+        value=units,
+        disabled=False
+    )
+
+    display(unit_text,unit_widge,hline)
+
+    ## DRIFT CORRECTION
+    drift_text = widgets.HTML(
+        value = "<b>Drift correction -</b> Check the box below to perform measurement drift correction",
+    )
+
+    drift_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(drift_text,drift_widge,hline)
+
+    ## HIGH-FIELD SLOPE CORRECTION
+    slope_text = widgets.HTML(
+        value = "<b>High-field slope correction -</b> Check the box below to perform high-field slope correction",
+    )
+
+    slope_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(slope_text,slope_widge,hline)
+
+    ## FIRST-POINT ARTIFACT
+    fpa_text = widgets.HTML(
+        value = "<b>First point artifact -</b> Check the box below to remove first point artifact",
+    )
+
+    fpa_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(fpa_text,fpa_widge,hline)
+
+
+    ## FIRST-POINT ARTIFACT
+    lpa_text = widgets.HTML(
+        value = "<b>Last point artifact -</b> Check the box below to remove last point artifact",
+    )
+
+    lpa_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(lpa_text,lpa_widge,hline)
+
+
+    ## REMOVE OUTLIERS
+    outlier_text = widgets.HTML(
+        value = "<b>Remove outliers -</b> Check the box below to remove outliers",
+    )
+
+    outlier_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(outlier_text,outlier_widge,hline)
+
+    ## LOWER BRANCH SUBTRACT
+    lbs_text = widgets.HTML(
+        value = "<b>Subtract lower branch -</b> Check the box below to subtract the lower hysteresis branch",
+    )
+
+    lbs_widge = widgets.Checkbox(
+        value=False,
+        disabled=False
+    )
+
+    display(lbs_text,lbs_widge,hline)
+
+    ## PLOTS 
+    plot_text = widgets.HTML(
+        value = "<b>Plots -</b> Select preprocessing plotting option",
+    )
+
+    plot_widge = widgets.Select(
+        options=['No Plots', 'Plot results', 'Plot results and download'],
+        value='Plot results',
+        rows=3,
+        disabled=False
+    )
+
+    display(plot_text,plot_widge,hline)
+
+    ## PACK RESULTS INTO DICTIONARY
+    pp0 = {
+        "name": sample_widge,
+        "mass": mass_widge,
+        "unit": unit_widge,
+        "drift": drift_widge,
+        "slope": slope_widge,
+        "fpa": fpa_widge,
+        "lpa": lpa_widge,
+        "outlier": outlier_widge,
+        "lbs": lbs_widge,
+        "plot": plot_widge,
+    }
+    
+    return pp0
+
+def data_preprocessing(fn,pp0):
+
+    #copy current state of widget options
+    pp = {
+        "name": pp0["name"].value,
+        "mass": pp0["mass"].value,
+        "unit": pp0["unit"].value,
+        "drift": pp0["drift"].value,
+        "slope": pp0["slope"].value,
+        "fpa": pp0["fpa"].value,
+        "lpa": pp0["lpa"].value,
+        "outlier": pp0["outlier"].value,
+        "lbs": pp0["lbs"].value,
+        "plot": pp0["plot"].value,
+    }
+  
+    #parse measurements
+    H, Hr, M, Fk, Fj, Ft, dH = fs.parse_measurements(fn)
+    Hcal, Mcal, tcal = fs.parse_calibration(fn)
+  
+    # make a data dictionary for passing large numbers of arguments
+    # should unpack in functions for consistency
+    data = {
+        "H":H,
+        "Hr": Hr,
+        "M": M,
+        "dH": dH,
+        "Fk": Fk,
+        "Fj": Fj,
+        "Ft": Ft,
+        "Hcal": Hcal,
+        "Mcal": Mcal,
+        "tcal": tcal  
+    }
+  
+    if pp["drift"] == True:
+        data = fs.drift_correction(data)   
+  
+    data = fs.convert_units(pp,data,fn)
+  
+    if pp["mass"] > 0.0:
+        data = fs.mass_normalize(pp,data)
+  
+    if pp["slope"] == True:
+        data = fs.slope_correction(data)
+  
+    if pp["fpa"] == True:
+        data = fs.remove_fpa(data)
+    
+    if pp["lpa"] == True:
+        data = fs.remove_lpa(data)
+    
+    if pp["outlier"] == True:
+        data = fs.remove_outliers(data)
+  
+    if pp["lbs"] == True:
+        data = fs.lowerbranch_subtract(data)
+  
+    if pp["plot"] != "No Plots":
+        fs.plot_hysteresis(pp,data)
+        if pp["lbs"] == True:
+            fs.plot_delta_hysteresis(pp,data)
+    
+    return data
 
 ### NEW CODE
 def sample_details(fn):
