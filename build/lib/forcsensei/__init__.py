@@ -579,7 +579,7 @@ def plot_hysteresis(pp,data):
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
-  #if pp["plots"] == 'Plot results and download':
+  #if pp["plot"] == 'Plot results and download':
   #    plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
   #    files.download(sample+'_hys.pdf')
 
@@ -589,7 +589,7 @@ def plot_hysteresis(pp,data):
 def plot_delta_hysteresis(pp,data):
 
   #unpack 
-  sample = pp["sample name"]
+  sample = pp["name"]
   M = data["DM"]
   H = data["H"]
   Fk = data["Fk"]
@@ -601,7 +601,7 @@ def plot_delta_hysteresis(pp,data):
 
   for i in range(5,int(np.max(Fk)),7):
     
-    if pp["units"] == "Cgs":
+    if pp["unit"] == "Cgs":
       ax.plot(H[Fk==i],M[Fk==i],'-k')
     else:
       ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
@@ -639,24 +639,24 @@ def plot_delta_hysteresis(pp,data):
   ax.set_xticks(Xticks[Xidx])
 
    #label x-axis according to unit system
-  if pp["units"]=="Cgs":
+  if pp["unit"]=="Cgs":
     ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
     ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
 
   #label y-axis according to unit system
-  if ((pp["units"]=="SI") and (pp["mass normalize"] == True)):
+  if ((pp["unit"]=="SI") and (pp["mass"] >0 .0)):
     ax.set_ylabel('M - Mhys [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="SI") and (pp["mass normalize"] == False)): 
+  elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M - Mhys [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == True)): 
+  elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
     ax.set_ylabel('M - Mhys [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["units"]=="Cgs") and (pp["mass normalize"] == False)): 
+  elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel('M - Mhys [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   
-  if pp["save plots"] == True:
-    plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
-    files.download(sample+'_delta.pdf')
+  #if pp["plots"] == 'Plot results and download':
+  #  plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
+  #  files.download(sample+'_delta.pdf')
 
   plt.show()
 
