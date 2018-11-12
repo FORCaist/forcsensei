@@ -15,15 +15,20 @@ from termcolor import cprint
 ### NEW CODE
 def sample_details(fn):
 
-  sample = "."
-  if len(fn.split(sample))>1:
-    sample = sample.join(fn.split(sample)[:-1])
-  else:
-    sample = fn.split(sample)
+#  sample = "."
+#  if len(fn.split(sample))>1:
+#    sample = sample.join(fn.split(sample)[:-1])
+#  else:
+#    sample = fn.split(sample)
   
+#  if type(sample) is list:
+#    sample=sample[0]
+
+  sample = fn.split('/')[-1]
+  sample = sample.split('.')
   if type(sample) is list:
     sample=sample[0]
-  
+
   units=parse_units(fn)
   mass=parse_mass(fn)
   
