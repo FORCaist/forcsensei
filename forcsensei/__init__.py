@@ -17,7 +17,7 @@ from termcolor import cprint
 def preprocessing_options(fn):
 
     #Get measurement information from file
-    sample, units, mass = fs.sample_details(fn)
+    sample, units, mass = sample_details(fn)
     
     ## horizontal line
     hline = widgets.HTML(
@@ -179,8 +179,8 @@ def data_preprocessing(fn,pp0):
     }
   
     #parse measurements
-    H, Hr, M, Fk, Fj, Ft, dH = fs.parse_measurements(fn)
-    Hcal, Mcal, tcal = fs.parse_calibration(fn)
+    H, Hr, M, Fk, Fj, Ft, dH = parse_measurements(fn)
+    Hcal, Mcal, tcal = parse_calibration(fn)
   
     # make a data dictionary for passing large numbers of arguments
     # should unpack in functions for consistency
@@ -198,32 +198,32 @@ def data_preprocessing(fn,pp0):
     }
   
     if pp["drift"] == True:
-        data = fs.drift_correction(data)   
+        data = drift_correction(data)   
   
-    data = fs.convert_units(pp,data,fn)
+    data = convert_units(pp,data,fn)
   
     if pp["mass"] > 0.0:
-        data = fs.mass_normalize(pp,data)
+        data = mass_normalize(pp,data)
   
     if pp["slope"] == True:
-        data = fs.slope_correction(data)
+        data = slope_correction(data)
   
     if pp["fpa"] == True:
-        data = fs.remove_fpa(data)
+        data = remove_fpa(data)
     
     if pp["lpa"] == True:
-        data = fs.remove_lpa(data)
+        data = remove_lpa(data)
     
     if pp["outlier"] == True:
-        data = fs.remove_outliers(data)
+        data = remove_outliers(data)
   
     if pp["lbs"] == True:
-        data = fs.lowerbranch_subtract(data)
+        data = lowerbranch_subtract(data)
   
     if pp["plot"] != "No Plots":
-        fs.plot_hysteresis(pp,data)
+        plot_hysteresis(pp,data)
         if pp["lbs"] == True:
-            fs.plot_delta_hysteresis(pp,data)
+            plot_delta_hysteresis(pp,data)
     
     return data
 
