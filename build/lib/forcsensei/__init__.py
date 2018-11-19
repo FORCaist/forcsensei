@@ -9,7 +9,7 @@ import scipy as sp
 from IPython.display import YouTubeVideo
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
-import matplotlib.style
+#import matplotlib.style
 import matplotlib as mpl
 #from google.colab import files
 mpl.rcParams['pdf.fonttype'] = 42
@@ -742,7 +742,7 @@ def plot_hysteresis(pp,data):
   H = data["H"]
   Fk = data["Fk"]
 
-  mpl.style.use('seaborn-whitegrid')
+  #mpl.style.use('seaborn-whitegrid')
   hfont = {'fontname':'STIXGeneral'}
 
   fig, ax = plt.subplots(figsize=(8,8))
@@ -817,7 +817,7 @@ def plot_delta_hysteresis(pp,data):
   H = data["H"]
   Fk = data["Fk"]
 
-  mpl.style.use('seaborn-whitegrid')
+  #mpl.style.use('seaborn-whitegrid')
   hfont = {'fontname':'STIXGeneral'}
 
   fig, ax = plt.subplots(figsize=(8,8))
