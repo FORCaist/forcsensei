@@ -1089,7 +1089,7 @@ def measurement_limts(fn,pp):
     Hc2=parse_header(fn,string)
 
     string='Hc1' #lower Hc value for the FORC box
-    Hc2=parse_header(fn,string)
+    Hc1=parse_header(fn,string)
 
     if (Units0=='Cgs') & (pp['unit']=='SI'): #convert CGS to SI
         Hc2=Hc2/1E4 #convert from Oe to T
