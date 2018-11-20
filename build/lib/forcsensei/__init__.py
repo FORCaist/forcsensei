@@ -1324,8 +1324,12 @@ def parse_measurements(file):
 
     return H, Hr, M, Fk, Fj, Ft, dH
 
-def play_tutorial(index):
+def play_tutorial(tv0):
     
+    test = tv0['index'].value
+    idx = test.find(':')
+    index = int(test[0:idx])
+
     #define list of tutorial videos
     tutorial = ['ilyS6K4ry3U'] #tutorial 1
     tutorial.append('6kCS_nJC72g') #tutorial 2
