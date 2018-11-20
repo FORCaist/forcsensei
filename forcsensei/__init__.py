@@ -15,6 +15,38 @@ import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 from termcolor import cprint
 
+### NEW PROCESSING CODES INCLUDING WIDGETS
+def model_options(fn,pp,data):
+
+    sf_widge = widgets.BoundedIntText(
+        value=3,
+        min=2,
+        max=7,
+        step=1,
+        description='SF:',
+        disabled=False
+    )
+    
+    #construct plotting accordion
+    header=widgets.HTML(value = "<h2>Modelling</h2>")
+    display(header)
+    
+    explain0=widgets.HTML(value = "In this section you can set the model options used to estimate the FORC function.")
+    explain1=widgets.HTML(value = "This is currently the Pike et al. [1999] algorithm, which requires a user-defined smoothing factor (sf)")
+    display(explain0)
+    display(explain1)
+                          
+    #Construct accordion
+    pp_accord = widgets.Accordion(children=[sf_widge])
+    pp_accord.set_title(0, 'Select Pike Smoothing Factor [2-7]:')
+
+    display(pp_accord)    
+       
+    ## PACK RESULTS
+    data['sf'] = sf_widge
+    
+    return data
+
 
 ### NEW PREPROCESSING CODE INCLUDING WIDGETS
 def preprocessing_options(fn):
