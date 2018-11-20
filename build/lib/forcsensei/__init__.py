@@ -15,6 +15,42 @@ import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 from termcolor import cprint
 
+### NEW MODEL TO CALCULATE RHO
+def model(data):
+    
+    #unpack variables
+    H = data['H']
+    Hr = data['Hr']
+    M = data['M']
+    Fk = data ['Fk']
+    Fj = data ['Fj']
+    SF0 = float(data['sf'].value)
+    
+    rho = np.zeros(Fk.size)
+    Fn = np.zeros(Fk.size)
+    hat = np.zeros(Fk.size)
+    
+    for i in range(Fk.size):
+        deltaFk = Fk-Fk[i]
+        idx = (np.abs(deltaFk)<=SF0*1.1) & (np.abs(Fj-Fj[i]-deltaFk)<=SF0*1.1)
+        N = np.sum(idx)
+        HX = H[idx]-H[i]
+        HrX = Hr[idx]-Hr[i]
+        
+        Fn[i] = np.sum(idx)
+        Y = M[idx]
+        
+        X = np.column_stack((np.ones(N),HX,HX**2,HrX,HrX**2,HX*HrX))
+        coeff = np.linalg.lstsq(X, Y,rcond=None)
+        rho[i] = -0.5*coeff[0][5]
+            
+    
+    #pack up result
+    data['rho'] = rho        
+    
+    return data
+
+
 ### NEW PROCESSING CODES INCLUDING WIDGETS
 def model_options(fn,pp,data):
 
