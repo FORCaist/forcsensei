@@ -1064,6 +1064,47 @@ def calibration_times(file, Npts):
 
     return tcal_k
 
+def measurement_limts(fn,pp):
+    """Function to find measurement limits and conver units if required
+
+    Inputs:
+    file: name of data file (string)    
+
+
+    Outputs:
+    Hc1: minimum Hc
+    Hc2: maximum Hc
+    Hb1: minimum Hb
+    Hb2: maximum Hb
+    """    
+    Units0=parse_units(fn) #determine measurement system (CGS or SI)
+    
+    string='Hb2' #upper Hb value for the FORC box
+    Hb2=parse_header(file,string)
+
+    string='Hb1' #lower Hb value for the FORC box
+    Hb1=parse_header(file,string)
+
+    string='Hc2' #upper Hc value for the FORC box
+    Hc2=parse_header(file,string)
+
+    string='Hc1' #lower Hc value for the FORC box
+    Hc2=parse_header(file,string)
+
+    if (Units0=='Cgs') & (pp['unit']=='SI'): #convert CGS to SI
+        Hc2=Hc2/1E4 #convert from Oe to T
+        Hc1=Hc1/1E4 #convert from Oe to T
+        Hb2=Hb2/1E4 #convert from Oe to T
+        Hb1=Hb1/1E4 #convert from Oe to T
+      
+    if (Units0=='SI') & (pp['unit']=='Cgs'): #convert SI to Cgs
+        Hc2=Hc2*1E4 #convert from Oe to T
+        Hc1=Hc1*1E4 #convert from Oe to T
+        Hb2=Hb2*1E4 #convert from Oe to T
+        Hb1=Hb1*1E4 #convert from Oe to T    
+
+    return Hc1, Hc2, Hb1, Hb2
+
 def measurement_times(file,Fk,Fj):
     """Function to estimate the time at which magnetization points were measured in a FORC sequence
     
