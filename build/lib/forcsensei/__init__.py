@@ -1333,7 +1333,7 @@ def play_tutorial(tv0):
     #define list of tutorial videos
     tutorial = ['ilyS6K4ry3U'] #tutorial 1
     tutorial.append('6kCS_nJC72g') #tutorial 2
-    tutorial.append('fZ0oB2wEBOI') #tutorial 3
+    tutorial.append('PSKQ3ZNQ_O8') #tutorial 3
         
     vid = YouTubeVideo(id = tutorial[index-1],autoplay=True)
     display(vid)
