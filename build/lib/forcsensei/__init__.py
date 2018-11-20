@@ -1337,3 +1337,20 @@ def play_tutorial(tv0):
         
     vid = YouTubeVideo(id = tutorial[index-1],autoplay=True)
     display(vid)
+
+def tutorial_options(*arg):
+
+    tut_widge = widgets.Dropdown(
+        options=['1: Introduction', '2: Preprocessing options', '3: Plotting options'],
+        value='1: Introduction',
+        description='Select:',
+        disabled=False,
+    )
+
+    display(tut_widge)
+
+    tv0 = {
+        "index": tut_widge,
+    }
+    
+    return tv0
