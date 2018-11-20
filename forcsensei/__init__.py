@@ -19,6 +19,83 @@ from termcolor import cprint
 ### NEW PREPROCESSING CODE INCLUDING WIDGETS
 def preprocessing_options(fn):
 
+    #define sequence of widgets
+    sample, units, mass = sample_details(fn)
+
+    sample_widge = widgets.Text(value=sample)
+
+    if mass == "N\A":
+        mass_widge = widgets.FloatText(value=-1, description = 'grams')
+    else:
+        mass_widge = widgets.FloatText(value=mass, description = 'grams')
+
+    unit_widge = widgets.RadioButtons(options=['SI', 'Cgs'],value="SI")
+    drift_widge = widgets.Checkbox(value=False, description=' Check me')
+    slope_widge = widgets.Checkbox(value=False, description=' Check me')
+    fpa_widge = widgets.Checkbox(value=False, description=' Check me')
+    lpa_widge = widgets.Checkbox(value=False, description=' Check me')
+    outlier_widge = widgets.Checkbox(value=False, description=' Check me')
+    lbs_widge = widgets.Checkbox(value=False, description=' Check me')
+
+    plot_widge = widgets.Select(
+        options=['No Plots', 'Plot results', 'Plot results and download'],
+        value='Plot results',
+        rows=3,
+        disabled=False
+        )
+    
+    
+    header=widgets.HTML(value = "<h2>Sample preprocessing</h2>")
+    display(header)
+    
+    explain0=widgets.HTML(value = "In this section you can set the data preprocessing options.")
+    explain1=widgets.HTML(value = "Click on each topic to make your preprocessing options")
+    display(explain0)
+    display(explain1)
+
+    #Construct accordion
+    pp_accord = widgets.Accordion(children=[sample_widge,
+                                        mass_widge,
+                                        unit_widge,
+                                        drift_widge,
+                                        slope_widge,
+                                        fpa_widge,
+                                        lpa_widge,
+                                        outlier_widge,
+                                        lbs_widge,
+                                        plot_widge])
+
+    pp_accord.set_title(0, 'Sample name')
+    pp_accord.set_title(1, 'Sample mass (use -1 to disable mass correction)')
+    pp_accord.set_title(2, 'Select calculation units')
+    pp_accord.set_title(3, 'Perform measurement drift correction')
+    pp_accord.set_title(4, 'High-field slope correction')
+    pp_accord.set_title(5, 'Remove first point artifact')
+    pp_accord.set_title(6, 'Remove last point artifact')
+    pp_accord.set_title(7, 'Remove outliers')
+    pp_accord.set_title(8, 'Perform lower branch subtraction')
+    pp_accord.set_title(9, 'Plotting options for the preprocessed data')
+
+    display(pp_accord)
+
+    #pack options into a dictionary
+    pp0 = {
+        "name": sample_widge,
+        "mass": mass_widge,
+        "unit": unit_widge,
+        "drift": drift_widge,
+        "slope": slope_widge,
+        "fpa": fpa_widge,
+        "lpa": lpa_widge,
+        "outlier": outlier_widge,
+        "lbs": lbs_widge,
+        "plot": plot_widge,
+        }
+    
+    return pp0
+
+def preprocessing_options_old(fn):
+
     #Get measurement information from file
     sample, units, mass = sample_details(fn)
     
