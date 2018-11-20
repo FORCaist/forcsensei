@@ -1080,16 +1080,16 @@ def measurement_limts(fn,pp):
     Units0=parse_units(fn) #determine measurement system (CGS or SI)
     
     string='Hb2' #upper Hb value for the FORC box
-    Hb2=parse_header(file,string)
+    Hb2=parse_header(fn,string)
 
     string='Hb1' #lower Hb value for the FORC box
-    Hb1=parse_header(file,string)
+    Hb1=parse_header(fn,string)
 
     string='Hc2' #upper Hc value for the FORC box
-    Hc2=parse_header(file,string)
+    Hc2=parse_header(fn,string)
 
     string='Hc1' #lower Hc value for the FORC box
-    Hc2=parse_header(file,string)
+    Hc2=parse_header(fn,string)
 
     if (Units0=='Cgs') & (pp['unit']=='SI'): #convert CGS to SI
         Hc2=Hc2/1E4 #convert from Oe to T
