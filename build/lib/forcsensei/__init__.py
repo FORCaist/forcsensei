@@ -228,7 +228,7 @@ def data_preprocessing(fn,pp0):
         if pp["lbs"] == True:
             plot_delta_hysteresis(pp,data)
     
-    return data
+    return pp, data
 
 ### NEW CODE
 def sample_details(fn):
@@ -788,7 +788,7 @@ def plot_hysteresis(pp,data):
 
   #label x-axis according to unit system
   if pp["unit"]=="Cgs":
-    ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel('H [Oe]',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
     ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
 
@@ -863,7 +863,7 @@ def plot_delta_hysteresis(pp,data):
 
    #label x-axis according to unit system
   if pp["unit"]=="Cgs":
-    ax.set_xlabel('Oe [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel('H [Oe]',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
     ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
 
