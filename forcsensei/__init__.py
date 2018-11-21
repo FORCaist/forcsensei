@@ -362,7 +362,7 @@ def preprocessing_options(fn):
     pp_accord.set_title(6, 'Remove last point artifact')
     pp_accord.set_title(7, 'Remove outliers')
     pp_accord.set_title(8, 'Perform lower branch subtraction')
-    pp_accord.set_title(9, 'Plotting options for the preprocessed data')
+    pp_accord.set_title(9, 'Plot and download options')
 
     display(pp_accord)
 
@@ -1159,9 +1159,9 @@ def plot_hysteresis(pp,data):
 
   #label y-axis according to unit system
   if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
-    ax.set_ylabel('M [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel('M [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
     ax.set_ylabel('M [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
