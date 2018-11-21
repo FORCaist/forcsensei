@@ -1717,7 +1717,7 @@ def tutorial_options(*arg):
 
     tut_widge = widgets.Dropdown(
         options=['1: Introduction - working with FORCsensei', '2: Preprocessing options', '3: Plotting options'],
-        value='1: Introduction',
+        value='1: Introduction - working with FORCsensei',
         description='Select:',
         disabled=False,
     )
