@@ -122,7 +122,7 @@ def forc_plotting(fn,pp,pl0,data):
         else:
             outputfile = fn[0:idx]+'_FORC.pdf'
         
-        plt.savefig(outputfile, dpi=150)
+        plt.savefig(outputfile, dpi=150, bbox_inches="tight")
     
     plt.show()
 
@@ -589,7 +589,7 @@ def data_preprocessing(fn,pp0):
         data = lowerbranch_subtract(data)
   
     if pp["plot"] != "No Plots":
-        plot_hysteresis(pp,data)
+        plot_hysteresis(fn,pp,data)
         if pp["lbs"] == True:
             plot_delta_hysteresis(pp,data)
     
@@ -794,7 +794,7 @@ def preprocessing(pp,fn):
     data = lowerbranch_subtract(data)
   
   if pp["plots"] == True:
-    plot_hysteresis(pp,data)
+    plot_hysteresis(fn,pp,data)
     if pp["subtract lower branch"] == True:
       plot_delta_hysteresis(pp,data)
     
@@ -1099,7 +1099,7 @@ def lowerbranch_subtract(data):
     
     return data
   
-def plot_hysteresis(pp,data):
+def plot_hysteresis(fn,pp,data):
 
   #unpack 
   sample = pp["name"]
@@ -1170,6 +1170,15 @@ def plot_hysteresis(pp,data):
   #if pp["plot"] == 'Plot results and download':
   #    plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
   #    files.download(sample+'_hys.pdf')
+
+  if pp["plot"] == 'Plot results and download':
+    idx = fn.rfind('.')
+    if idx<0:
+        outputfile = fn+'_hys.pdf'
+    else:
+        outputfile = fn[0:idx]+'_hys.pdf'
+        
+    plt.savefig(outputfile, dpi=150, bbox_inches="tight")
 
   plt.show()
   
