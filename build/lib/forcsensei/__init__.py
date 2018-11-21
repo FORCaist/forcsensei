@@ -19,11 +19,12 @@ rc('text', usetex=True)
 #from termcolor import cprint
 
 ###
-def openfile_dialog():
-    from PyQt5 import QtGui, QtWidgets
-    app = QtWidgets.QApplication([dir])
-    fname = QtWidgets.QFileDialog.getOpenFileName(None, "Select a file...", '.', filter="All files (*)")[0]
-    return str(fname)
+#def openfile_dialog():
+#    from PyQt5 import QtGui, QtWidgets
+#    app = QtWidgets.QApplication([dir])
+#    fname = QtWidgets.QFileDialog.getOpenFileName(None, "Select a file...", '.', filter="All files (*)")[0]
+    
+#    return str(fname)
 
 #NEW PLOTTING ROUTINES
 def forc_plotting(fn,pl0,data):
