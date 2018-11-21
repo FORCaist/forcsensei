@@ -24,7 +24,7 @@ mpl.rcParams['pdf.fonttype'] = 42
 #    return str(fname)
 
 #NEW PLOTTING ROUTINES
-def forc_plotting(fn,pl0,data):
+def forc_plotting(fn,pp,pl0,data):
 
     #make a fixed copy of the options
     pl = {
