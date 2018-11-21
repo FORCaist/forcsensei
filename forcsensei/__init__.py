@@ -183,13 +183,13 @@ def plotting_options(fn,pp):
     download_widge = widgets.Checkbox(value=False, description = 'Check me')
     
     #construct plotting accordion
-    header=widgets.HTML(value = "<h2>Plotting</h2>")
-    display(header)
+    #header=widgets.HTML(value = "<h2>Plotting</h2>")
+    #display(header)
     
-    explain0=widgets.HTML(value = "In this section you can set plotting options for your final FORC distribution.")
-    explain1=widgets.HTML(value = "Click on each topic to make your plotting options")
-    display(explain0)
-    display(explain1)
+    #explain0=widgets.HTML(value = "In this section you can set plotting options for your final FORC distribution.")
+    #explain1=widgets.HTML(value = "Click on each topic to make your plotting options")
+    #display(explain0)
+    #display(explain1)
 
     #Construct accordion
     pl_accord = widgets.Accordion(children=[Hc1_widge,
@@ -284,13 +284,13 @@ def model_options(fn,pp,data):
     )
     
     #construct plotting accordion
-    header=widgets.HTML(value = "<h2>Modelling</h2>")
-    display(header)
+    #header=widgets.HTML(value = "<h2>Modelling</h2>")
+    #display(header)
     
-    explain0=widgets.HTML(value = "In this section you can set the model options used to estimate the FORC function.")
-    explain1=widgets.HTML(value = "This is currently the Pike et al. [1999] algorithm, which requires a user-defined smoothing factor (sf)")
-    display(explain0)
-    display(explain1)
+    #explain0=widgets.HTML(value = "In this section you can set the model options used to estimate the FORC function.")
+    #explain1=widgets.HTML(value = "This is currently the Pike et al. [1999] algorithm, which requires a user-defined smoothing factor (sf)")
+    #display(explain0)
+    #display(explain1)
                           
     #Construct accordion
     pp_accord = widgets.Accordion(children=[sf_widge])
@@ -333,13 +333,13 @@ def preprocessing_options(fn):
         )
     
     
-    header=widgets.HTML(value = "<h2>Sample preprocessing</h2>")
-    display(header)
+    #header=widgets.HTML(value = "<h2>Sample preprocessing</h2>")
+    #display(header)
     
-    explain0=widgets.HTML(value = "In this section you can set the data preprocessing options.")
-    explain1=widgets.HTML(value = "Click on each topic to make your preprocessing options")
-    display(explain0)
-    display(explain1)
+    #explain0=widgets.HTML(value = "In this section you can set the data preprocessing options.")
+    #explain1=widgets.HTML(value = "Click on each topic to make your preprocessing options")
+    #display(explain0)
+    #display(explain1)
 
     #Construct accordion
     pp_accord = widgets.Accordion(children=[sample_widge,
@@ -1706,7 +1706,7 @@ def play_tutorial(tv0):
 def tutorial_options(*arg):
 
     tut_widge = widgets.Dropdown(
-        options=['1: Introduction', '2: Preprocessing options', '3: Plotting options'],
+        options=['1: Introduction - working with FORCsensei', '2: Preprocessing options', '3: Plotting options'],
         value='1: Introduction',
         description='Select:',
         disabled=False,
