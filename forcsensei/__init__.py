@@ -121,7 +121,7 @@ def forc_plotting(fn,pl0,data):
 def plotting_options(fn,pp):
 
     #Get measurement limits from file (+adjust units if required)
-    Hc1, Hc2, Hb1, Hb2 = fs.measurement_limts(fn,pp)
+    Hc1, Hc2, Hb1, Hb2 = measurement_limts(fn,pp)
 
     #build widgets
     
