@@ -100,7 +100,7 @@ def preprocessing_options(fn):
 
     sample_widge = widgets.Text(value=sample)
 
-    if mass == "N\A":
+    if mass == "N/A":
         mass_widge = widgets.FloatText(value=-1, description = 'grams')
     else:
         mass_widge = widgets.FloatText(value=mass, description = 'grams')

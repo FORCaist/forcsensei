@@ -13,11 +13,12 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 #from google.colab import files
 mpl.rcParams['pdf.fonttype'] = 42
-from PyQt5 import QtGui, QtWidgets
+#from PyQt5 import QtGui, QtWidgets
 #from termcolor import cprint
 
 ###
 def openfile_dialog():
+    from PyQt5 import QtGui, QtWidgets
     app = QtWidgets.QApplication([dir])
     fname = QtWidgets.QFileDialog.getOpenFileName(None, "Select a file...", '.', filter="All files (*)")[0]
     return str(fname)
@@ -99,7 +100,7 @@ def preprocessing_options(fn):
 
     sample_widge = widgets.Text(value=sample)
 
-    if mass == "N\A":
+    if mass == "N/A":
         mass_widge = widgets.FloatText(value=-1, description = 'grams')
     else:
         mass_widge = widgets.FloatText(value=mass, description = 'grams')
