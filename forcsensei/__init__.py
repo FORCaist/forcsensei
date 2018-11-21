@@ -1153,9 +1153,9 @@ def plot_hysteresis(pp,data):
 
   #label x-axis according to unit system
   if pp["unit"]=="Cgs":
-    ax.set_xlabel('H [Oe]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel(r'$H [Oe]$',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
-    ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel(r'$B [mT]$',horizontalalignment='right', position=(1,25), fontsize=12)
 
   #label y-axis according to unit system
   if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
@@ -1163,9 +1163,9 @@ def plot_hysteresis(pp,data):
   elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel(r'$M [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
-    ax.set_ylabel('M [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M [emu/g]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel('M [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
   #if pp["plot"] == 'Plot results and download':
   #    plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
@@ -1228,19 +1228,19 @@ def plot_delta_hysteresis(pp,data):
 
    #label x-axis according to unit system
   if pp["unit"]=="Cgs":
-    ax.set_xlabel('H [Oe]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel(r'$H [Oe]$',horizontalalignment='right', position=(1,25), fontsize=12)
   else:
-    ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel(r'$B [mT]$',horizontalalignment='right', position=(1,25), fontsize=12)
 
   #label y-axis according to unit system
   if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
-    ax.set_ylabel('M - Mhys [Am2/kg]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M - M_{hys} [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel('M - Mhys [Am2]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M - M_{hys} [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
-    ax.set_ylabel('M - Mhys [emu/g]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M - M_{hys} [emu/g]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel('M - Mhys [emu]',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    ax.set_ylabel(r'$M - M_{hys} [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   
   #if pp["plots"] == 'Plot results and download':
   #  plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
