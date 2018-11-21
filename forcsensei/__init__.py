@@ -9,14 +9,11 @@ import scipy as sp
 from IPython.display import YouTubeVideo
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
-#import matplotlib.style
 import matplotlib as mpl
-#from google.colab import files
+import matplotlib.tri as tri
+import matplotlib.colors as colors
+mpl.rc('text', usetex=True)
 mpl.rcParams['pdf.fonttype'] = 42
-from matplotlib import rc
-rc('text', usetex=True)
-#from PyQt5 import QtGui, QtWidgets
-#from termcolor import cprint
 
 ###
 #def openfile_dialog():
