@@ -591,7 +591,7 @@ def data_preprocessing(fn,pp0):
     if pp["plot"] != "No Plots":
         plot_hysteresis(fn,pp,data)
         if pp["lbs"] == True:
-            plot_delta_hysteresis(pp,data)
+            plot_delta_hysteresis(fn,pp,data)
     
     return pp, data
 
@@ -796,7 +796,7 @@ def preprocessing(pp,fn):
   if pp["plots"] == True:
     plot_hysteresis(fn,pp,data)
     if pp["subtract lower branch"] == True:
-      plot_delta_hysteresis(pp,data)
+      plot_delta_hysteresis(fn,pp,data)
     
   return data
 
@@ -1167,10 +1167,6 @@ def plot_hysteresis(fn,pp,data):
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel(r'$M [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
-  #if pp["plot"] == 'Plot results and download':
-  #    plt.savefig(sample+'_hys.pdf',bbox_inches="tight")
-  #    files.download(sample+'_hys.pdf')
-
   if pp["plot"] == 'Plot results and download':
     idx = fn.rfind('.')
     if idx<0:
@@ -1183,7 +1179,7 @@ def plot_hysteresis(fn,pp,data):
   plt.show()
   
   
-def plot_delta_hysteresis(pp,data):
+def plot_delta_hysteresis(fn,pp,data):
 
   #unpack 
   sample = pp["name"]
@@ -1250,10 +1246,15 @@ def plot_delta_hysteresis(pp,data):
     ax.set_ylabel(r'$M - M_{hys} [emu/g]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
   elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
     ax.set_ylabel(r'$M - M_{hys} [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  
-  #if pp["plots"] == 'Plot results and download':
-  #  plt.savefig(sample+'_delta.pdf',bbox_inches="tight")
-  #  files.download(sample+'_delta.pdf')
+
+  if pp["plot"] == 'Plot results and download':
+    idx = fn.rfind('.')
+    if idx<0:
+        outputfile = fn+'_delta.pdf'
+    else:
+        outputfile = fn[0:idx]+'_delta.pdf'
+        
+    plt.savefig(outputfile, dpi=150, bbox_inches="tight")
 
   plt.show()
 
