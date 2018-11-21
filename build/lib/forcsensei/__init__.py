@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 #from google.colab import files
 mpl.rcParams['pdf.fonttype'] = 42
+from matplotlib import rc
+rc('text', usetex=True)
 #from PyQt5 import QtGui, QtWidgets
 #from termcolor import cprint
 
@@ -22,6 +24,205 @@ def openfile_dialog():
     app = QtWidgets.QApplication([dir])
     fname = QtWidgets.QFileDialog.getOpenFileName(None, "Select a file...", '.', filter="All files (*)")[0]
     return str(fname)
+
+#NEW PLOTTING ROUTINES
+def forc_plotting(fn,pl0,data):
+
+    #make a fixed copy of the options
+    pl = {
+        "Hc1": pl0["Hc1"].value,
+        "Hc2": pl0["Hc2"].value,
+        "Hb1": pl0["Hb1"].value,
+        "Hb2": pl0["Hb2"].value,
+        "colorbar": pl0["colorbar"].value,
+        "contour": pl0["contour"].value,
+        "color": pl0["color"].value,
+        "scale": pl0["scale"].value,
+        "download": pl0["download"].value
+    }
+
+    #unpack data
+    rho = data['rho']
+    H = data['H']
+    Hr = data['Hr']
+    Hc = 0.5*(H-Hr)
+    Hb = 0.5*(H+Hr)
+    dH = np.mean(np.diff(H[data['Fk']==np.max(data['Fk'])])) #mean field spacing
+
+    #create grid for interpolation
+    Nx = np.ceil((pl['Hc2']- pl['Hc1'])/dH)+1 #number of points along x
+    Ny = np.ceil((pl['Hb2']- pl['Hb1'])/dH)+1 #number of points along y
+    xi = np.linspace(pl['Hc1'],pl['Hc2'],int(Nx))
+    yi = np.linspace(pl['Hb1'],pl['Hb2'],int(Ny))
+    
+    #perform interpolation
+    triang = tri.Triangulation(Hc, Hb)
+    interpolator = tri.LinearTriInterpolator(triang, rho)
+    Xi, Yi = np.meshgrid(xi, yi)
+    Zi = interpolator(Xi, Yi)
+
+    #define colormaps
+    if pl['color']=='seismic':
+        cmap = mpl.cm.seismic
+    elif pl['color']=='spectral':
+        cmap = mpl.cm.Spectral
+    elif pl['color']=='PuOr':
+        cmap = mpl.cm.PuOr
+    elif pl['color']=='RdBu_r':
+        cmap = mpl.cm.RdBu_r        
+    
+    #create FORC plot
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_subplot(1,1,1)
+
+    if pp['unit']=='SI':        
+        CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, norm=MidpointNormalize(midpoint=0.)) #plot SI version [mT]
+        #CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = pl['color'], vmin=np.min(Zi), vmax=np.max(Zi)) #plot SI version [mT]
+        if pl['contour']:
+            CS2 = ax.contour(CS, levels=CS.levels[::10], colors='k')
+        ax.set_xlabel(r'$\mu_0 H_c~[mT]$',fontsize=14) #label Hc axis
+        ax.set_ylabel(r'$\mu_0 H_u~[mT]$',fontsize=14) #label Hu axis
+    else:
+        CS = ax.contourf(Xi, Yi, Zi, 101, vmin=np.min(Zi), vmax=np.max(Zi)) #plot Cgs version [Oe]
+        ax.set_xlabel(r'$H_c~[Oe]$',fontsize=14) #label Hc axis
+        ax.set_ylabel(r'$H_u~[Oe]$',fontsize=14) #label Hu axis
+    
+    ax.tick_params(labelsize=14)
+    ax.set_aspect('equal') #set 1:1 aspect ratio
+    ax.minorticks_on() #add minor ticks
+    
+    if pl['colorbar']:    
+        cbar = fig.colorbar(CS,fraction=0.04, pad=0.08)
+        cbar.ax.tick_params(labelsize=14)
+    
+        if (pp['mass']>0) & (pp['unit']=='SI'): #label colorbar with appropriate units (depends on mass normalization)
+            cbar.ax.set_title(r'$\frac{Am^2}{T^2 kg}$',fontsize=20)
+        elif (pp['mass']<=0) & (pp['unit']=='SI'):
+            cbar.ax.set_title(r'$\frac{Am^2}{T^2}$',fontsize=20)
+        elif (pp['mass']>0) & (pp['unit']=='Cgs'):
+            cbar.ax.set_title(r'$\frac{emu}{Oe^2 g}$',fontsize=20)
+        elif (pp['mass']<=0) & (pp['unit']=='Cgs'):
+            cbar.ax.set_title(r'$\frac{emu}{Oe^2}$',fontsize=20)    
+    
+    if pl['download']:
+        idx = fn.rfind('.')
+        if idx<0:
+            outputfile = fn+'_FORC.pdf'
+        else:
+            outputfile = fn[0:idx]+'_FORC.pdf'
+        
+        plt.savefig(outputfile, dpi=150)
+    
+    plt.show()
+
+    return pl
+
+def plotting_options(fn,pp):
+
+    #Get measurement limits from file (+adjust units if required)
+    Hc1, Hc2, Hb1, Hb2 = fs.measurement_limts(fn,pp)
+
+    #build widgets
+    
+    ## Hc limits
+    if pp['unit']=='SI':
+        Hc1_widge = widgets.FloatText(value=Hc1, disabled=False, description = "[T]")
+        Hc2_widge = widgets.FloatText(value=Hc2, disabled=False, description = "[T]")
+    else:
+        Hc1_widge = widgets.FloatText(value=Hc1, disabled=False, description = "[Oe]")
+        Hc2_widge = widgets.FloatText(value=Hc2, disabled=False, description = "[Oe]")
+
+    ## Hb limits
+    if pp['unit']=='SI':
+        Hb1_widge = widgets.FloatText(value=Hb1, disabled=False, description = "[T]")
+        Hb2_widge = widgets.FloatText(value=Hb2, disabled=False, description = "[T]")
+    else:
+        Hb1_widge = widgets.FloatText(value=Hb1, disabled=False, description = "[Oe]")
+        Hb2_widge = widgets.FloatText(value=Hb2, disabled=False, description = "[Oe]")
+
+
+    ## Colorbar
+    #colorbar_text = widgets.HTML(value = "<b>Scalebar -</b> Check the box below to include a scalebar")
+    colorbar_widge = widgets.Checkbox(value=False, description = 'Check me')
+    
+    ## Colorbar
+    #contour_text = widgets.HTML(value = "<b>Contours -</b> Check the box below include contour lines")
+    contour_widge = widgets.Checkbox(value=False, description = 'Check me')
+
+    ## color map 
+    #color_text = widgets.HTML(value = "<b>Color -</b> Select colormap")
+
+    color_widge = widgets.Select(
+        options=['seismic', 'spectral','PuOr','RdBu_r'],
+        value='RdBu_r',
+        rows=1,
+        disabled=False
+    )
+    
+    
+    ## color scale
+    #scale_text = widgets.HTML(value = "<b>Color scaling -</b> Select color scale type:")
+
+    scale_widge = widgets.RadioButtons(
+        options=['Linear', 'Nonlinear'],
+        value='Linear',
+        disabled=False
+    )
+    
+    download_widge = widgets.Checkbox(value=False, description = 'Check me')
+    
+    #construct plotting accordion
+    header=widgets.HTML(value = "<h2>Plotting</h2>")
+    display(header)
+    
+    explain0=widgets.HTML(value = "In this section you can set plotting options for your final FORC distribution.")
+    explain1=widgets.HTML(value = "Click on each topic to make your plotting options")
+    display(explain0)
+    display(explain1)
+
+    #Construct accordion
+    pl_accord = widgets.Accordion(children=[Hc1_widge,
+                                        Hc2_widge,
+                                        Hb1_widge,
+                                        Hc2_widge,
+                                        colorbar_widge,
+                                        contour_widge,
+                                        color_widge,
+                                        scale_widge,
+                                        download_widge])
+    if pp['unit']=='SI':
+        pl_accord.set_title(0, 'Minimum Bc: smallest field value on the horizontal axis')
+        pl_accord.set_title(1, 'Maximum Bc: largest field value on the horizontal axis')
+        pl_accord.set_title(2, 'Minimum Bu: smallest field value on the vertical axis')
+        pl_accord.set_title(3, 'Maximum Bu: largest field value on the vertical axis')
+    else:
+        pl_accord.set_title(0, 'Minimum Hc: smallest field value on the horizontal axis')
+        pl_accord.set_title(1, 'Maximum Hc: largest field value on the horizontal axis')
+        pl_accord.set_title(2, 'Minimum Hu: smallest field value on the vertical axis')
+        pl_accord.set_title(3, 'Maximum Hu: largest field value on the vertical axis"')
+        
+    pl_accord.set_title(4, 'Include scale bar')
+    pl_accord.set_title(5, 'Include contours')
+    pl_accord.set_title(6, 'Select colormap')
+    pl_accord.set_title(7, 'Color scaling options')
+    pl_accord.set_title(8, 'Download plot')
+    display(pl_accord)    
+       
+    ## PACK RESULTS
+    pl0 = {
+            "Hc1": Hc1_widge,
+            "Hc2": Hc2_widge,
+            "Hb1": Hb1_widge,
+            "Hb2": Hb2_widge,
+            "colorbar": colorbar_widge,
+            "contour": contour_widge,
+            "color": color_widge,
+            "scale": scale_widge,
+            "download": download_widge
+    }
+    
+    return pl0
+
 
 ### NEW MODEL TO CALCULATE RHO
 def model(data):
