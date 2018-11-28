@@ -87,7 +87,11 @@ def forc_plotting(fn,pp,pl0,data):
     ax = fig.add_subplot(1,1,1)
 
     if pp['unit']=='SI':        
-        CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, norm=MidpointNormalize(midpoint=0.)) #plot SI version [mT]
+        if pp['scale']=='linear':
+          vval = np.maximum(np.abs(np.min(Zi)),np.max(Zi))
+          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, vmin=-vval, vmax-vval) #plot SI version [mT]        
+        else:
+          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, norm=MidpointNormalize(midpoint=0.)) #plot SI version [mT]
         #CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = pl['color'], vmin=np.min(Zi), vmax=np.max(Zi)) #plot SI version [mT]
         if pl['contour']:
             CS2 = ax.contour(CS, levels=CS.levels[::10], colors='k')
