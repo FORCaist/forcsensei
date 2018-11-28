@@ -89,7 +89,7 @@ def forc_plotting(fn,pp,pl0,data):
     if pp['unit']=='SI':        
         if pp['scale']=='linear':
           vval = np.maximum(np.abs(np.min(Zi)),np.max(Zi))
-          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, vmin=-vval, vmax-vval) #plot SI version [mT]        
+          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, vmin=-vval, vmax=-vval) #plot SI version [mT]        
         else:
           CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, norm=MidpointNormalize(midpoint=0.)) #plot SI version [mT]
         #CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = pl['color'], vmin=np.min(Zi), vmax=np.max(Zi)) #plot SI version [mT]
