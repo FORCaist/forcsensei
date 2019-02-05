@@ -1020,6 +1020,7 @@ def calculate_model(X):
         c = LocalCluster(n_workers=X['workers'].value)
         X['client'] = Client(c)
     
+    print('DASK cluster started')
     H = X['H']
     Hr = X['Hr']
     dH = X['dH']
@@ -1043,6 +1044,7 @@ def calculate_model(X):
     D_Hb = X['client'].scatter(Hb,broadcast=True)
     D_M = X['client'].scatter(M,broadcast=True)
     D_X = X['client'].scatter(X0,broadcast=True)
+    print('Variables scattered')
 
     #Split arrays for DASK
     Nsplit = 30
@@ -1057,6 +1059,7 @@ def calculate_model(X):
     lamb_sb = X['lambdaSB'].value
 
     #Split jobs over DASK
+    print('Entering DASK calculation')
     jobs = []
     for i in range(len(Hc0)):
         job = X['client'].submit(variforc_regression_evidence,sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,D_Hc,D_Hb,dH*np.sqrt(2),D_M,Hc0[i],Hb0[i],D_X)
