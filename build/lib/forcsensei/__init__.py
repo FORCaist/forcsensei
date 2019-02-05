@@ -1,962 +1,325 @@
 # FORCsensei module 
-# give command OPENBLAS_NUM_THREADS=1 in terminal if using multithreading
 # compile using: python3 setup.py sdist bdist_wheel
 
 import os
 import numpy as np
 import codecs as cd
 import scipy as sp
+from scipy import linalg
 from IPython.display import YouTubeVideo
 import ipywidgets as widgets
+from ipywidgets import interact, interactive, fixed, Layout, VBox, HBox
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.tri as tri
 import matplotlib.colors as colors
-mpl.rc('text', usetex=True)
-mpl.rcParams['pdf.fonttype'] = 42
+from matplotlib.colors import LinearSegmentedColormap
+from dask.distributed import Client, LocalCluster, progress #needed for multiprocessing
 
-###
-#def openfile_dialog():
-#    from PyQt5 import QtGui, QtWidgets
-#    app = QtWidgets.QApplication([dir])
-#    fname = QtWidgets.QFileDialog.getOpenFileName(None, "Select a file...", '.', filter="All files (*)")[0]
+##### BEGIN SECTION: TUTORIALS  #################################################
+def play_tutorial(index):
+
+    #define list of tutorial videos
+    tutorial = ['ilyS6K4ry3U'] #tutorial 1
+    tutorial.append('b1hkT0sj1h8') #tutorial 2
+    tutorial.append('g0NT6aUwN8c') #tutorial 3
     
-#    return str(fname)
+    if index>-1:
+        vid = YouTubeVideo(id = tutorial[index],autoplay=True)
+        display(vid)
 
-#BASIC COLOR SCALING ROUTINE
-class MidpointNormalize(colors.Normalize):
-    def __init__(self, vmin=None, vmax=None, midpoint=None, clip=False):
-        self.midpoint = midpoint
-        colors.Normalize.__init__(self, vmin, vmax, clip)
+def video_tutorials(*arg):
 
-    def __call__(self, value, clip=None):
-        # I'm ignoring masked values and all kinds of edge cases to make a
-        # simple example...
-        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
-        return np.ma.masked_array(np.interp(value, x, y))
-
-
-#NEW PLOTTING ROUTINES
-def forc_plotting(fn,pp,pl0,data):
-
-    #make a fixed copy of the options
-    pl = {
-        "Hc1": pl0["Hc1"].value,
-        "Hc2": pl0["Hc2"].value,
-        "Hb1": pl0["Hb1"].value,
-        "Hb2": pl0["Hb2"].value,
-        "colorbar": pl0["colorbar"].value,
-        "contour": pl0["contour"].value,
-        "color": pl0["color"].value,
-        "scale": pl0["scale"].value,
-        "download": pl0["download"].value
-    }
-
-    #unpack data
-    rho = data['rho']
-    H = data['H']
-    Hr = data['Hr']
-    Hc = 0.5*(H-Hr)
-    Hb = 0.5*(H+Hr)
-    dH = np.mean(np.diff(H[data['Fk']==np.max(data['Fk'])])) #mean field spacing
-
-    #create grid for interpolation
-    Nx = np.ceil((pl['Hc2']- pl['Hc1'])/dH)+1 #number of points along x
-    Ny = np.ceil((pl['Hb2']- pl['Hb1'])/dH)+1 #number of points along y
-    xi = np.linspace(pl['Hc1'],pl['Hc2'],int(Nx))
-    yi = np.linspace(pl['Hb1'],pl['Hb2'],int(Ny))
+    style={'description_width': 'initial'}
     
-    #perform interpolation
-    triang = tri.Triangulation(Hc, Hb)
-    interpolator = tri.LinearTriInterpolator(triang, rho)
-    Xi, Yi = np.meshgrid(xi, yi)
-    Zi = interpolator(Xi, Yi)
-
-    #define colormaps
-    if pl['color']=='seismic':
-        cmap = mpl.cm.seismic
-    elif pl['color']=='spectral':
-        cmap = mpl.cm.Spectral
-    elif pl['color']=='PuOr':
-        cmap = mpl.cm.PuOr
-    elif pl['color']=='RdBu_r':
-        cmap = mpl.cm.RdBu_r        
-    
-    #create FORC plot
-    fig = plt.figure(figsize=(6,6))
-    ax = fig.add_subplot(1,1,1)
-
-    if pp['unit']=='SI':        
-        if pl['scale']=='Linear':
-          vval = np.maximum(np.abs(np.min(Zi)),np.max(Zi))
-          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, vmin=-vval, vmax=vval) #plot SI version [mT]        
-        else:
-          CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = cmap, norm=MidpointNormalize(midpoint=0.)) #plot SI version [mT]
-        #CS = ax.contourf(Xi*1000, Yi*1000, Zi, 101, cmap = pl['color'], vmin=np.min(Zi), vmax=np.max(Zi)) #plot SI version [mT]
-        if pl['contour']:
-            CS2 = ax.contour(CS, levels=CS.levels[::10], colors='k')
-        ax.set_xlabel(r'$\mu_0 H_c~[mT]$',fontsize=14) #label Hc axis
-        ax.set_ylabel(r'$\mu_0 H_u~[mT]$',fontsize=14) #label Hu axis
-    else:
-        CS = ax.contourf(Xi, Yi, Zi, 101, vmin=np.min(Zi), vmax=np.max(Zi)) #plot Cgs version [Oe]
-        ax.set_xlabel(r'$H_c~[Oe]$',fontsize=14) #label Hc axis
-        ax.set_ylabel(r'$H_u~[Oe]$',fontsize=14) #label Hu axis
-    
-    ax.tick_params(labelsize=14)
-    ax.set_aspect('equal') #set 1:1 aspect ratio
-    ax.minorticks_on() #add minor ticks
-    
-    if pl['colorbar']:    
-        cbar = fig.colorbar(CS,fraction=0.04, pad=0.08)
-        cbar.ax.tick_params(labelsize=14)
-    
-        if (pp['mass']>0) & (pp['unit']=='SI'): #label colorbar with appropriate units (depends on mass normalization)
-            cbar.ax.set_title(r'$\frac{Am^2}{T^2 kg}$',fontsize=20)
-        elif (pp['mass']<=0) & (pp['unit']=='SI'):
-            cbar.ax.set_title(r'$\frac{Am^2}{T^2}$',fontsize=20)
-        elif (pp['mass']>0) & (pp['unit']=='Cgs'):
-            cbar.ax.set_title(r'$\frac{emu}{Oe^2 g}$',fontsize=20)
-        elif (pp['mass']<=0) & (pp['unit']=='Cgs'):
-            cbar.ax.set_title(r'$\frac{emu}{Oe^2}$',fontsize=20)    
-    
-    if pl['download']:
-        idx = fn.rfind('.')
-        if idx<0:
-            outputfile = fn+'_FORC.pdf'
-        else:
-            outputfile = fn[0:idx]+'_FORC.pdf'
-        
-        plt.savefig(outputfile, dpi=150, bbox_inches="tight")
-    
-    plt.show()
-
-    return pl
-
-def plotting_options(fn,pp):
-
-    #Get measurement limits from file (+adjust units if required)
-    Hc1, Hc2, Hb1, Hb2 = measurement_limts(fn,pp)
-
-    #build widgets
-    
-    ## Hc limits
-    if pp['unit']=='SI':
-        Hc1_widge = widgets.FloatText(value=Hc1, disabled=False, description = "[T]")
-        Hc2_widge = widgets.FloatText(value=Hc2, disabled=False, description = "[T]")
-    else:
-        Hc1_widge = widgets.FloatText(value=Hc1, disabled=False, description = "[Oe]")
-        Hc2_widge = widgets.FloatText(value=Hc2, disabled=False, description = "[Oe]")
-
-    ## Hb limits
-    if pp['unit']=='SI':
-        Hb1_widge = widgets.FloatText(value=Hb1, disabled=False, description = "[T]")
-        Hb2_widge = widgets.FloatText(value=Hb2, disabled=False, description = "[T]")
-    else:
-        Hb1_widge = widgets.FloatText(value=Hb1, disabled=False, description = "[Oe]")
-        Hb2_widge = widgets.FloatText(value=Hb2, disabled=False, description = "[Oe]")
-
-
-    ## Colorbar
-    #colorbar_text = widgets.HTML(value = "<b>Scalebar -</b> Check the box below to include a scalebar")
-    colorbar_widge = widgets.Checkbox(value=False, description = 'Check me')
-    
-    ## Colorbar
-    #contour_text = widgets.HTML(value = "<b>Contours -</b> Check the box below include contour lines")
-    contour_widge = widgets.Checkbox(value=False, description = 'Check me')
-
-    ## color map 
-    #color_text = widgets.HTML(value = "<b>Color -</b> Select colormap")
-
-    color_widge = widgets.Select(
-        options=['seismic', 'spectral','PuOr','RdBu_r'],
-        value='RdBu_r',
-        rows=1,
-        disabled=False
+    tut_widge = widgets.Dropdown(
+        options=[
+                ['Select topic',-1],
+                ['1: Introduction - working with FORCsensei',0],
+                ['2: Plotting options',1],
+                ['3: download options',2],
+                ],
+        value = -1,
+        description='Video tutorials:',
+        style=style,
     )
     
-    
-    ## color scale
-    #scale_text = widgets.HTML(value = "<b>Color scaling -</b> Select color scale type:")
+    X = interactive(play_tutorial,index=tut_widge)
+    display(X)
 
-    scale_widge = widgets.RadioButtons(
-        options=['Linear', 'Nonlinear'],
-        value='Linear',
-        disabled=False
-    )
-    
-    download_widge = widgets.Checkbox(value=False, description = 'Check me')
-    
-    #construct plotting accordion
-    #header=widgets.HTML(value = "<h2>Plotting</h2>")
-    #display(header)
-    
-    #explain0=widgets.HTML(value = "In this section you can set plotting options for your final FORC distribution.")
-    #explain1=widgets.HTML(value = "Click on each topic to make your plotting options")
-    #display(explain0)
-    #display(explain1)
+##### END SECTION: TUTORIALS   #################################################
 
-    #Construct accordion
-    pl_accord = widgets.Accordion(children=[Hc1_widge,
-                                        Hc2_widge,
-                                        Hb1_widge,
-                                        Hc2_widge,
-                                        colorbar_widge,
-                                        contour_widge,
-                                        color_widge,
-                                        scale_widge,
-                                        download_widge])
-    if pp['unit']=='SI':
-        pl_accord.set_title(0, 'Minimum Bc: smallest field value on the horizontal axis')
-        pl_accord.set_title(1, 'Maximum Bc: largest field value on the horizontal axis')
-        pl_accord.set_title(2, 'Minimum Bu: smallest field value on the vertical axis')
-        pl_accord.set_title(3, 'Maximum Bu: largest field value on the vertical axis')
-    else:
-        pl_accord.set_title(0, 'Minimum Hc: smallest field value on the horizontal axis')
-        pl_accord.set_title(1, 'Maximum Hc: largest field value on the horizontal axis')
-        pl_accord.set_title(2, 'Minimum Hu: smallest field value on the vertical axis')
-        pl_accord.set_title(3, 'Maximum Hu: largest field value on the vertical axis"')
-        
-    pl_accord.set_title(4, 'Include scale bar')
-    pl_accord.set_title(5, 'Include contours')
-    pl_accord.set_title(6, 'Select colormap')
-    pl_accord.set_title(7, 'Color scaling options')
-    pl_accord.set_title(8, 'Download plot')
-    display(pl_accord)    
-       
-    ## PACK RESULTS
-    pl0 = {
-            "Hc1": Hc1_widge,
-            "Hc2": Hc2_widge,
-            "Hb1": Hb1_widge,
-            "Hb2": Hb2_widge,
-            "colorbar": colorbar_widge,
-            "contour": contour_widge,
-            "color": color_widge,
-            "scale": scale_widge,
-            "download": download_widge
-    }
+##### BEGIN SECTION: PREPROCESSING  #################################################
+def preprocessing_options(X):
+
+    style = {'description_width': 'initial'} #general style settings
+
+    ### Define sample properties ###
+    fn = X['fn']
+    prop_title = widgets.HTML(value='<h3>Sample preprocessing options</h3>')
+    mass_title = widgets.HTML(value='To disable mass normalization use a value of -1')
+
+    sample, unit, mass = sample_details(fn)
+
+    sample_widge = widgets.Text(value=sample,description='Sample name:',style=style)
     
-    return pl0
-
-
-### NEW MODEL TO CALCULATE RHO
-def model(data):
-    
-    #unpack variables
-    H = data['H']
-    Hr = data['Hr']
-    M = data['M']
-    Fk = data ['Fk']
-    Fj = data ['Fj']
-    SF0 = float(data['sf'].value)
-    
-    rho = np.zeros(Fk.size)
-    Fn = np.zeros(Fk.size)
-    hat = np.zeros(Fk.size)
-    
-    for i in range(Fk.size):
-        deltaFk = Fk-Fk[i]
-        idx = (np.abs(deltaFk)<=SF0*1.1) & (np.abs(Fj-Fj[i]-deltaFk)<=SF0*1.1)
-        N = np.sum(idx)
-        HX = H[idx]-H[i]
-        HrX = Hr[idx]-Hr[i]
-        
-        Fn[i] = np.sum(idx)
-        Y = M[idx]
-        
-        X = np.column_stack((np.ones(N),HX,HX**2,HrX,HrX**2,HX*HrX))
-        coeff = np.linalg.lstsq(X, Y,rcond=None)
-        rho[i] = -0.5*coeff[0][5]
-            
-    
-    #pack up result
-    data['rho'] = rho        
-    
-    return data
-
-
-### NEW PROCESSING CODES INCLUDING WIDGETS
-def model_options(fn,pp,data):
-
-    sf_widge = widgets.BoundedIntText(
-        value=3,
-        min=2,
-        max=7,
-        step=1,
-        description='SF:',
-        disabled=False
-    )
-    
-    #construct plotting accordion
-    #header=widgets.HTML(value = "<h2>Modelling</h2>")
-    #display(header)
-    
-    #explain0=widgets.HTML(value = "In this section you can set the model options used to estimate the FORC function.")
-    #explain1=widgets.HTML(value = "This is currently the Pike et al. [1999] algorithm, which requires a user-defined smoothing factor (sf)")
-    #display(explain0)
-    #display(explain1)
-                          
-    #Construct accordion
-    pp_accord = widgets.Accordion(children=[sf_widge])
-    pp_accord.set_title(0, 'Select Pike Smoothing Factor [2-7]:')
-
-    display(pp_accord)    
-       
-    ## PACK RESULTS
-    data['sf'] = sf_widge
-    
-    return data
-
-
-### NEW PREPROCESSING CODE INCLUDING WIDGETS
-def preprocessing_options(fn):
-
-    #define sequence of widgets
-    sample, units, mass = sample_details(fn)
-
-    sample_widge = widgets.Text(value=sample)
-
     if mass == "N/A":
-        mass_widge = widgets.FloatText(value=-1, description = 'grams')
+        mass_widge = widgets.FloatText(value=-1, description = 'Sample mass (g):',style=style)
     else:
-        mass_widge = widgets.FloatText(value=mass, description = 'grams')
+        mass_widge = widgets.FloatText(value=mass, description = 'Sample mass (g):',style=style)
 
-    unit_widge = widgets.RadioButtons(options=['SI', 'Cgs'],value="SI")
-    drift_widge = widgets.Checkbox(value=False, description=' Check me')
-    slope_widge = widgets.Checkbox(value=False, description=' Check me')
-    fpa_widge = widgets.Checkbox(value=False, description=' Check me')
-    lpa_widge = widgets.Checkbox(value=False, description=' Check me')
-    outlier_widge = widgets.Checkbox(value=False, description=' Check me')
-    lbs_widge = widgets.Checkbox(value=False, description=' Check me')
-
-    plot_widge = widgets.Select(
-        options=['No Plots', 'Plot results', 'Plot results and download'],
-        value='Plot results',
-        rows=3,
-        disabled=False
-        )
+    mass_widge1 = HBox([mass_widge,mass_title])
     
+    ### Define measurement corrections ###
+    correct_title = widgets.HTML(value='<h3>Select preprocessing options:</h3>')
     
-    #header=widgets.HTML(value = "<h2>Sample preprocessing</h2>")
-    #display(header)
+    slope_widge = widgets.FloatSlider(
+        value=70,
+        min=1,
+        max=100.0,
+        step=1,
+        description='Slope correction [%]:',
+        style=style,
+        readout_format='.0f',
+    )
     
-    #explain0=widgets.HTML(value = "In this section you can set the data preprocessing options.")
-    #explain1=widgets.HTML(value = "Click on each topic to make your preprocessing options")
-    #display(explain0)
-    #display(explain1)
+    slope_title = widgets.HTML(value='To disable high-field slope correction use a value of 100%')
+    slope_widge1 = HBox([slope_widge,slope_title])
 
-    #Construct accordion
-    pp_accord = widgets.Accordion(children=[sample_widge,
-                                        mass_widge,
-                                        unit_widge,
-                                        drift_widge,
-                                        slope_widge,
-                                        fpa_widge,
-                                        lpa_widge,
-                                        outlier_widge,
-                                        lbs_widge,
-                                        plot_widge])
-
-    pp_accord.set_title(0, 'Sample name')
-    pp_accord.set_title(1, 'Sample mass (use -1 to disable mass correction)')
-    pp_accord.set_title(2, 'Select calculation units')
-    pp_accord.set_title(3, 'Perform measurement drift correction')
-    pp_accord.set_title(4, 'High-field slope correction')
-    pp_accord.set_title(5, 'Remove first point artifact')
-    pp_accord.set_title(6, 'Remove last point artifact')
-    pp_accord.set_title(7, 'Remove outliers')
-    pp_accord.set_title(8, 'Perform lower branch subtraction')
-    pp_accord.set_title(9, 'Plot and download options')
-
-    display(pp_accord)
-
-    #pack options into a dictionary
-    pp0 = {
-        "name": sample_widge,
-        "mass": mass_widge,
-        "unit": unit_widge,
-        "drift": drift_widge,
-        "slope": slope_widge,
-        "fpa": fpa_widge,
-        "lpa": lpa_widge,
-        "outlier": outlier_widge,
-        "lbs": lbs_widge,
-        "plot": plot_widge,
-        }
     
-    return pp0
+    drift_widge = widgets.Checkbox(value=False, description='Measurement drift correction')
+    fpa_widge = widgets.Checkbox(value=False, description='Remove first point artifact')
+    lpa_widge = widgets.Checkbox(value=False, description='Remove last point artifact')
+    outlier_widge = widgets.Checkbox(value=False, description='Remove measurement outliers')
+    correct_widge = VBox([correct_title,sample_widge,mass_widge1,slope_widge1,drift_widge,fpa_widge,lpa_widge,outlier_widge])
 
-def preprocessing_options_old(fn):
+    preprocess_nest = widgets.Tab()
+    preprocess_nest.children = [correct_widge]
+    preprocess_nest.set_title(0, 'PREPROCESSING')
+    display(preprocess_nest)
 
-    #Get measurement information from file
-    sample, units, mass = sample_details(fn)
+    X["sample"] = sample_widge
+    X["mass"] = mass_widge
+    X["unit"] = unit
+    X["drift"] = drift_widge
+    X["slope"] = slope_widge
+    X["fpa"] = fpa_widge
+    X["lpa"] = lpa_widge 
+    X["outlier"] = outlier_widge
     
-    ## horizontal line
-    hline = widgets.HTML(
-        value = "<hr>",
-    )
+    return X
 
-    ## SAMPLE NAME
-    sample_text = widgets.HTML(
-        value = "<b>Sample name -</b> input sample name",
-    )
+def plot_delta_hysteresis(X,ax):
 
-    sample_widge = widgets.Text(value=sample, disabled=False)
+    #unpack 
+    M = X["DM"]
+    H = X["H"]
+    Fk = X["Fk"]
 
-    display(sample_text,sample_widge,hline)
+    hfont = {'fontname':'STIXGeneral'}
 
-    ## SAMPLE MASS
-    mass_text = widgets.HTML(
-        value = "<b>Sample mass -</b> input sample mass in grams (enter -1 to disable mass normalization)",
-    )
-
-    if mass == "N\A":
-        mass_widge = widgets.FloatText(value=-1, disabled=False)
-    else:
-        mass_widge = widgets.FloatText(value=mass, disabled=False)
+    for i in range(5,int(np.max(Fk)),5):
     
-    display(mass_text,mass_widge,hline)
+        if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
+            ax.plot(H[Fk==i],M[Fk==i]/(pp["mass"]/1000.0),'-k')        
+        else: #SI not mass normalized (T and Am2)
+            ax.plot(H[Fk==i],M[Fk==i],'-k') 
+      
+    ax.grid(False)
+    ax.minorticks_on()
+    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+    ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
 
-    ## CALCULATION UNITS
-    unit_text = widgets.HTML(
-        value = "<b>Units -</b> Select calculation units",
-    )
+    ax.spines['left'].set_position('zero')
+    ax.spines['left'].set_color('k')
 
-    unit_widge = widgets.RadioButtons(
-        options=['SI', 'Cgs'],
-        value=units,
-        disabled=False
-    )
+    # turn off the right spine/ticks
+    ax.spines['right'].set_color('none')
+    ax.yaxis.tick_left()
+  
+    ylim=np.max(np.abs(ax.get_ylim()))
+    ax.set_ylim([-ylim*0.1,ylim])
+    yticks0 = ax.get_yticks()
+    yticks = yticks0[yticks0 != 0]
+    ax.set_yticks(yticks)
+  
+    # set the y-spine
+    ax.spines['bottom'].set_position('zero')
+    ax.spines['bottom'].set_color('k')
 
-    display(unit_text,unit_widge,hline)
+    # turn off the top spine/ticks
+    ax.spines['top'].set_color('none')
+    ax.xaxis.tick_bottom()
 
-    ## DRIFT CORRECTION
-    drift_text = widgets.HTML(
-        value = "<b>Drift correction -</b> Check the box below to perform measurement drift correction",
-    )
+    Xticks = ax.get_xticks()
+    Xidx = np.argwhere(np.abs(Xticks)>0.01)
+    ax.set_xticks(Xticks[Xidx])
 
-    drift_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(drift_text,drift_widge,hline)
-
-    ## HIGH-FIELD SLOPE CORRECTION
-    slope_text = widgets.HTML(
-        value = "<b>High-field slope correction -</b> Check the box below to perform high-field slope correction",
-    )
-
-    slope_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(slope_text,slope_widge,hline)
-
-    ## FIRST-POINT ARTIFACT
-    fpa_text = widgets.HTML(
-        value = "<b>First point artifact -</b> Check the box below to remove first point artifact",
-    )
-
-    fpa_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(fpa_text,fpa_widge,hline)
-
-
-    ## FIRST-POINT ARTIFACT
-    lpa_text = widgets.HTML(
-        value = "<b>Last point artifact -</b> Check the box below to remove last point artifact",
-    )
-
-    lpa_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(lpa_text,lpa_widge,hline)
-
-
-    ## REMOVE OUTLIERS
-    outlier_text = widgets.HTML(
-        value = "<b>Remove outliers -</b> Check the box below to remove outliers",
-    )
-
-    outlier_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(outlier_text,outlier_widge,hline)
-
-    ## LOWER BRANCH SUBTRACT
-    lbs_text = widgets.HTML(
-        value = "<b>Subtract lower branch -</b> Check the box below to subtract the lower hysteresis branch",
-    )
-
-    lbs_widge = widgets.Checkbox(
-        value=False,
-        disabled=False
-    )
-
-    display(lbs_text,lbs_widge,hline)
-
-    ## PLOTS 
-    plot_text = widgets.HTML(
-        value = "<b>Plots -</b> Select preprocessing plotting option",
-    )
-
-    plot_widge = widgets.Select(
-        options=['No Plots', 'Plot results', 'Plot results and download'],
-        value='Plot results',
-        rows=3,
-        disabled=False
-    )
-
-    display(plot_text,plot_widge,hline)
-
-    ## PACK RESULTS INTO DICTIONARY
-    pp0 = {
-        "name": sample_widge,
-        "mass": mass_widge,
-        "unit": unit_widge,
-        "drift": drift_widge,
-        "slope": slope_widge,
-        "fpa": fpa_widge,
-        "lpa": lpa_widge,
-        "outlier": outlier_widge,
-        "lbs": lbs_widge,
-        "plot": plot_widge,
-    }
+    xmax = X["xmax"]
+    ax.set_xlim([-xmax,xmax])
     
-    return pp0
+    #label x-axis according to unit system
+    ax.set_xlabel('$\mu_0 H [T]$',horizontalalignment='right', position=(1,25), fontsize=12)
 
-def data_preprocessing(fn,pp0):
+    #label y-axis according to unit system
+    if X["mass"].value > 0.0:
+        ax.set_ylabel('$M - M_{hys} [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    else: 
+        ax.set_ylabel('$M - M_{hys} [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
 
-    #copy current state of widget options
-    pp = {
-        "name": pp0["name"].value,
-        "mass": pp0["mass"].value,
-        "unit": pp0["unit"].value,
-        "drift": pp0["drift"].value,
-        "slope": pp0["slope"].value,
-        "fpa": pp0["fpa"].value,
-        "lpa": pp0["lpa"].value,
-        "outlier": pp0["outlier"].value,
-        "lbs": pp0["lbs"].value,
-        "plot": pp0["plot"].value,
-    }
+    
+    return X
+
+def data_preprocessing(X):
   
     #parse measurements
-    H, Hr, M, Fk, Fj, Ft, dH = parse_measurements(fn)
-    Hcal, Mcal, tcal = parse_calibration(fn)
+    H, Hr, M, Fk, Fj, Ft, dH = parse_measurements(X["fn"])
+    Hcal, Mcal, tcal = parse_calibration(X["fn"])
   
     # make a data dictionary for passing large numbers of arguments
     # should unpack in functions for consistency
-    data = {
-        "H":H,
-        "Hr": Hr,
-        "M": M,
-        "dH": dH,
-        "Fk": Fk,
-        "Fj": Fj,
-        "Ft": Ft,
-        "Hcal": Hcal,
-        "Mcal": Mcal,
-        "tcal": tcal  
-    }
-  
-    if pp["drift"] == True:
-        data = drift_correction(data)   
-  
-    data = convert_units(pp,data,fn)
-  
-    if pp["mass"] > 0.0:
-        data = mass_normalize(pp,data)
-  
-    if pp["slope"] == True:
-        data = slope_correction(data)
-  
-    if pp["fpa"] == True:
-        data = remove_fpa(data)
+    X["H"] = H
+    X["Hr"] = Hr
+    X["M"] = M
+    X["dH"] = dH
+    X["Fk"] = Fk
+    X["Fj"] = Fj
+    X["Ft"] = Ft
+    X["Hcal"] = Hcal
+    X["Mcal"] = Mcal
+    X["tcal"] = tcal
+
+    if X['unit']=='Cgs':
+        X = CGS2SI(X)
     
-    if pp["lpa"] == True:
-        data = remove_lpa(data)
+    if X["drift"].value == True:
+        X = drift_correction(X)   
+  
+    #if X["mass"].value > 0.0:
+    #    X = mass_normalize(X)
+  
+    if X["slope"].value < 100:
+        X = slope_correction(X)
+  
+    if X["fpa"].value == True:
+        X = remove_fpa(X)
     
-    if pp["outlier"] == True:
+    if X["lpa"].value == True:
+        X = remove_lpa(X)
+    
+    if X["outlier"].value == True:
         data = remove_outliers(data)
   
-    if pp["lbs"] == True:
-        data = lowerbranch_subtract(data)
-  
-    if pp["plot"] != "No Plots":
-        plot_hysteresis(fn,pp,data)
-        if pp["lbs"] == True:
-            plot_delta_hysteresis(fn,pp,data)
+    X["lbs"] = lowerbranch_subtract(X)
     
-    return pp, data
+    fig = plt.figure(figsize=(12,8))
+    ax1 = fig.add_subplot(121)
+    X = plot_hysteresis(X,ax1)
+    ax2 = fig.add_subplot(122)
+    X = plot_delta_hysteresis(X,ax2)
+    
+    outputfile = X["sample"].value+'_hys.eps'    
+    plt.savefig(outputfile, bbox_inches="tight")
+    plt.show()
+    
+    return X
 
-### NEW CODE
+def plot_hysteresis(X,ax):
+
+  #unpack 
+    M = X["M"]
+    H = X["H"]
+    Fk = X["Fk"]
+
+    #mpl.style.use('seaborn-whitegrid')
+    hfont = {'fontname':'STIXGeneral'}
+
+    for i in range(5,int(np.max(Fk)),5):
+    
+        if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
+            ax.plot(H[Fk==i],M[Fk==i]/(X["mass"]/1000.0),'-k')        
+        else: #SI not mass normalized (T and Am2)
+            ax.plot(H[Fk==i],M[Fk==i],'-k')        
+
+    ax.grid(False)
+    ax.minorticks_on()
+    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+    ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
+
+    ax.spines['left'].set_position('zero')
+    ax.spines['left'].set_color('k')
+
+    # turn off the right spine/ticks
+    ax.spines['right'].set_color('none')
+    ax.yaxis.tick_left()
+    ylim=np.max(np.abs(ax.get_ylim()))
+    ax.set_ylim([-ylim,ylim])
+  
+    #ax.set_ylim([-1,1])
+    yticks0 = ax.get_yticks()
+    yticks = yticks0[yticks0 != 0]
+    ax.set_yticks(yticks)
+  
+    # set the y-spine
+    ax.spines['bottom'].set_position('zero')
+    ax.spines['bottom'].set_color('k')
+
+    # turn off the top spine/ticks
+    ax.spines['top'].set_color('none')
+    ax.xaxis.tick_bottom()
+    xmax = np.max(np.abs(ax.get_xlim()))
+    ax.set_xlim([-xmax,xmax])
+
+    #label x-axis
+    ax.set_xlabel('$\mu_0 H [T]$',horizontalalignment='right', position=(1,25), fontsize=12)
+
+    #label y-axis according to unit system
+    if X["mass"].value > 0.0:
+        ax.set_ylabel('$M [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+    else: 
+        ax.set_ylabel('$M [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+
+    
+    X["xmax"]=xmax
+    
+    return X
+
 def sample_details(fn):
 
-#  sample = "."
-#  if len(fn.split(sample))>1:
-#    sample = sample.join(fn.split(sample)[:-1])
-#  else:
-#    sample = fn.split(sample)
-  
-#  if type(sample) is list:
-#    sample=sample[0]
-
-  sample = fn.split('/')[-1]
-  sample = sample.split('.')
-  if type(sample) is list:
-    sample=sample[0]
-
-  units=parse_units(fn)
-  mass=parse_mass(fn)
-  
-  return sample, units, mass
-
-#def load_file():
-  
-#  uploaded = files.upload()
-#  for fn in uploaded.keys():
-#    print('User uploaded FORC file "{name}"'.format(name=fn))
-  
-#  sample, units, mass = sample_details(fn)
-  
-#  return sample, units, mass, fn
-
-def check_pp(fn, pp):
-  
-  sample0, units0, mass0 = sample_details(fn)
-  
-  print('Preprocessing setting check')
-  print('---------------------------')
-  print(' ')
-  
-  status = 1
-  # test: sample name
-  if type(pp["sample name"]) is not str:
-    status = -1
-    cprint('Error: Sample name is not a character string','red')
-  else:
-    cprint('Sample name: '+pp["sample name"],'green')
-  
-  # test: sample mass
-  if (pp["sample mass (g)"] == 'N/A'):
-    cprint('Sample mass (g): '+ pp["sample mass (g)"],'green')
-  elif (type(pp["sample mass (g)"]) is not float) or (pp["sample mass (g)"]<=0.0):
-    status = -1
-    cprint('Error: Sample mass is not a valid number','red')
-  else:
-    cprint('Sample mass (g): '+str(pp["sample mass (g)"]),'green')
-
-  # test: units
-  if (pp["units"] != 'SI') and (pp["units"] != 'Cgs'):
-    status = -1
-    cprint('Error: Units should be "SI" or "Cgs"','red')
-  elif (pp["units"] == 'SI') and (units0 == 'Cgs'):
-    status = 0
-    cprint('Inconsistency: Units do not match those in the data file','blue')
-  elif (pp["units"] == 'Cgs') and (units0 == 'SI'):
-    status = 0
-    cprint('Inconsistency: Units do not match those in the data file','blue')
-  else:
-    cprint('Units: '+str(pp["units"]),'green')
-
-  # test: mass normalization
-  if (pp["mass normalize"] != True) and (pp["mass normalize"] != False):
-    status = -1
-    cprint('Error: Mass normalization should be True or False','red')
-  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] == 'N/A'):
-    status = -1
-    cprint('Error: Mass normalization requested, but no mass provided','red')
-  elif (pp["mass normalize"] is True) and (pp["sample mass (g)"] != mass0) and (mass0 != 'N/A'):
-    status = 0
-    cprint('Inconsistency: Provided mass and data file mass are different','blue')
-  else:
-    cprint('Mass normalize: '+str(pp["mass normalize"]),'green')
-  
-  # test: drift correction
-  if (pp["drift correction"] != True) and (pp["drift correction"] != False):
-    status = -1
-    cprint('Error: Drift correction should be True or False','red')
-  else:
-    cprint('Drift correction: '+str(pp["drift correction"]),'green')
-  
-  # test: high field slope correction
-  if (pp["high field slope correction"] != True) and (pp["high field slope correction"] != False):
-    status = -1
-    cprint('Error: High field slope correction should be True or False','red')
-  else:
-    cprint('High field slope correction: '+str(pp["high field slope correction"]),'green')
-  
-  # test: first point artifact
-  if (pp["first point artifact"] != True) and (pp["first point artifact"] != False):
-    status = -1
-    cprint('Error: First point artifact should be True or False','red')
-  else:
-    cprint('First point artifact: '+str(pp["first point artifact"]),'green')
-
-  # test: replace outliers
-  if (pp["replace outliers"] != True) and (pp["replace outliers"] != False):
-    status = -1
-    cprint('Error: Replace outliers should be True or False','red')
-  else:
-    cprint('Replace outliers: '+str(pp["replace outliers"]),'green')
+    sample = fn.split('/')[-1]
+    sample = sample.split('.')
     
-  # test: subtract lower branch
-  if (pp["subtract lower branch"] != True) and (pp["subtract lower branch"] != False):
-    status = -1
-    cprint('Error: Subtract lower branch should be True or False','red')
-  else:
-    cprint('Subtract lower branch: '+str(pp["subtract lower branch"]),'green')
+    if type(sample) is list:
+        sample=sample[0]
 
-   # test: plots
-  if (pp["plots"] != True) and (pp["plots"] != False):
-    status = -1
-    cprint('Error: Plots option should be True or False','red')
-  else:
-    cprint('Plots: '+str(pp["plots"]),'green')
+    units=parse_units(fn)
+    mass=parse_mass(fn)
   
-  # test: save plots
-  if (pp["save plots"] != True) and (pp["save plots"] != False):
-    status = -1
-    cprint('Error: Save plots option should be True or False','red')
-  else:
-    cprint('Save plots: '+str(pp["save plots"]),'green')  
-  
-  cprint(' ')
-  
-  if status == -1:  
-    cprint('--------------------------------------------------------------','red')
-    cprint('There are errors in your settings, your analysis will not run!','red')
-    cprint('A video tutorial on these settings is provided above.','red')
-    cprint('--------------------------------------------------------------','red')
-  
-  if status == 0:  
-    cprint('-----------------------------------------------------------------------','blue')
-    cprint('There are inconsistencies in your settings, but your analysis will run!','blue')
-    cprint('A video tutorial on these settings is provided above.','blue')
-    cprint('-----------------------------------------------------------------------','blue')
-  
-  if status == 1:  
-    cprint('-------------------------------------------------------','green')
-    cprint('There are no errors or inconsistencies in your settings','green')
-    cprint('Your analysis is ready to run.','green')
-    cprint('-------------------------------------------------------','green')
+    return sample, units, mass
 
-
-### DATA PREPROCESSING
-def preprocessing(pp,fn):
+def slope_correction(X):
   
-  #parse measurements
-  H, Hr, M, Fk, Fj, Ft, dH = parse_measurements(fn)
-  Hcal, Mcal, tcal = parse_calibration(fn)
-  
-  # make a data dictionary for passing large numbers of arguments
-  # should unpack in functions for consistency
-  data = {
-    "H":H,
-    "Hr": Hr,
-    "M": M,
-    "dH": dH,
-    "Fk": Fk,
-    "Fj": Fj,
-    "Ft": Ft,
-    "Hcal": Hcal,
-    "Mcal": Mcal,
-    "tcal": tcal  
-  }
-  
-  if pp["drift correction"] == True:
-    data = drift_correction(data)   
-  
-  data = convert_units(pp,data,fn)
-  
-  if pp["mass normalize"] == True:
-    data = mass_normalize(pp,data)
-  
-  if pp["high field slope correction"] == True:
-    data = slope_correction(data)
-  
-  if pp["first point artifact"] == True:
-    data = remove_fpa(data)
-    
-  if pp["last point artifact"] == True:
-    data = remove_lpa(data)
-    
-  if pp["replace outliers"] == True:
-    data = remove_outliers(data)
-  
-  if pp["subtract lower branch"] == True:
-    data = lowerbranch_subtract(data)
-  
-  if pp["plots"] == True:
-    plot_hysteresis(fn,pp,data)
-    if pp["subtract lower branch"] == True:
-      plot_delta_hysteresis(fn,pp,data)
-    
-  return data
-
-
-# drift correction
-def drift_correction(data):
-  
-  #unpack
-  M = data["M"]
-  Mcal = data["Mcal"]    
-  Ft = data["Ft"]
-  tcal = data["tcal"]
-  
-  #perform drift correction
-  M=M*Mcal[0]/np.interp(Ft,tcal,Mcal,left=np.nan) #drift correction
-  
-  #repack
-  data["M"] = M
-  
-  return data
-
-
-def convert_units(pp,data,fn):
-  
-  _, unit, _ = sample_details(fn)
-
-  if (pp["unit"] == 'SI') and (unit == 'Cgs'): #convert to CGS
-    H = data["H"]
-    M = data["M"]
-    
-    H = H/1E4 #convert T into Oe
-    M = M/1E3
-      
-    data["H"] = H
-    data["M"] = M
-    
-  elif (pp["unit"] == 'Cgs') and (unit == 'SI'): #convert to CGS
-    H = data["H"]
-    M = data["M"]
-    
-    H = H*1E4 #convert Oe into T
-    M = M*1E3
-      
-    data["H"] = H
-    data["M"] = M
-      
-  return data
-
-def mass_normalize(pp,data):
-  
-  M = data["M"]
-    
-  if (pp["unit"] == 'SI'): 
-    M = M / (pp["mass"]/1000.) #convert to AM^2/kg
-      
-  if (pp["unit"] == 'Cgs'): 
-    M = M / pp["mass"] #convert to emu/g
-      
-  data["M"] = M
-      
-  return data
-
-
-# slope correction
-def slope_correction(data):
-  
-  #unpack
-  H = data["H"]
-  M = data["M"]
-  
-  # high field slope correction
-  Hidx = H > 0.8 * np.max(H)
-  p = np.polyfit(H[Hidx],M[Hidx],1)
-  M = M - H*p[0]
-  
-  #repack
-  data["M"]=M
-  
-  return data
-
-# remove FPA
-def remove_fpa(data):
-    
     #unpack
-    Fj = data["Fj"]
-    H = data["H"]    
-    Hr = data["Hr"]
-    M = data["M"]
-    Fk = data["Fk"]
-    Fj = data["Fj"]
-    Ft = data["Ft"]
-    
-    #remove first point artifact
-    idx=((Fj==1.0))
-    H=H[~idx]
-    Hr=Hr[~idx]
-    M=M[~idx]
-    Fk=Fk[~idx]
-    Fj=Fj[~idx]
-    Ft=Ft[~idx]
-    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
-    Fj=Fj-1.
-    
-    #repack
-    data["Fj"] = Fj
-    data["H"] = H   
-    data["Hr"] = Hr
-    data["M"] = M
-    data["Fk"] = Fk
-    data["Fj"] = Fj
-    data["Ft"] = Ft        
-    
-    return data
+    H = X["H"]
+    M = X["M"]
   
-# remove lPA
-def remove_lpa(data):
-    
-    #unpack
-    Fj = data["Fj"]
-    H = data["H"]    
-    Hr = data["Hr"]
-    M = data["M"]
-    Fk = data["Fk"]
-    Fj = data["Fj"]
-    Ft = data["Ft"]
-    
-    #remove last point artifact
-    Nforc = int(np.max(Fk))
-    W = np.ones(Fk.size)
-    
-    for i in range(Nforc):      
-      Fj_max=np.sum((Fk==i))
-      idx = ((Fk==i) & (Fj==Fj_max))
-      W[idx]=0.0
-    
-    idx = (W > 0.5)
-    H=H[idx]
-    Hr=Hr[idx]
-    M=M[idx]
-    Fk=Fk[idx]
-    Fj=Fj[idx]
-    Ft=Ft[idx]
-    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
-    
-    #repack
-    data["Fj"] = Fj
-    data["H"] = H   
-    data["Hr"] = Hr
-    data["M"] = M
-    data["Fk"] = Fk
-    data["Fj"] = Fj
-    data["Ft"] = Ft        
-    
-    return data
+    # high field slope correction
+    Hidx = H > (X["slope"].value/100) * np.max(H)
+    p = np.polyfit(H[Hidx],M[Hidx],1)
+    M = M - H*p[0]
   
-def remove_outliers(data):
+    #repack
+    X["M"]=M
+  
+    return X
+
+def mass_normalize(X):
+  
+    X["M"] = X["M"] / (X["mass"]/1000.) #convert to AM^2/kg
+    
+    return X
+
+def remove_outliers(X):
     
     """Function to replace "bad" measurements to zero.
     
@@ -974,11 +337,11 @@ def remove_outliers(data):
     
     """
     #unpack variables
-    H = data["H"]    
-    Hr = data["Hr"]
-    M = data["M"]
-    Fk = data["Fk"]
-    Fj = data["Fj"]
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
     
     SF=2 #half width of the smooth (full width = 2SF+1)
     Mst=np.zeros(M.size)*np.nan #initialize output of smoothed magnetizations
@@ -1027,23 +390,117 @@ def remove_outliers(data):
   
     Nforc = int(np.max(Fk))
     for i in range(Nforc):
-      idx = (Fk == i)
-      idx0 = np.argsort(Fj[idx])
-      for i in range(idx.size):
-        Fj[idx[idx0[i]]] = i+1
+        idx = (Fk == i)
+        idx0 = np.argsort(Fj[idx])
+        for i in range(idx.size):
+            Fj[idx[idx0[i]]] = i+1
     
     #repack variables
-    H = data["H"]    
-    Hr = data["Hr"]
-    M = data["M"]
-    Fk = data["Fk"]
-    Fj = data["Fj"]
+    X["H"] = H   
+    X["Hr"] = Hr
+    X["M"] = M
+    X["Fk"] = Fk
+    X["Fj"] = Fj   
     
+    return X
+
+def remove_lpa(X):
     
+    #unpack
+    Fj = X["Fj"]
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
+    Ft = X["Ft"]
     
-    return data
+    #remove last point artifact
+    Nforc = int(np.max(Fk))
+    W = np.ones(Fk.size)
+    
+    for i in range(Nforc):      
+        Fj_max=np.sum((Fk==i))
+        idx = ((Fk==i) & (Fj==Fj_max))
+        W[idx]=0.0
+    
+    idx = (W > 0.5)
+    H=H[idx]
+    Hr=Hr[idx]
+    M=M[idx]
+    Fk=Fk[idx]
+    Fj=Fj[idx]
+    Ft=Ft[idx]
+    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
+    
+    #repack
+    X["Fj"] = Fj
+    X["H"] = H   
+    X["Hr"] = Hr
+    X["M"] = M
+    X["Fk"] = Fk
+    X["Fj"] = Fj
+    X["Ft"] = Ft        
+    
+    return X
+
+def remove_fpa(X):
+    
+    #unpack
+    Fj = X["Fj"]
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
+    Ft = X["Ft"]
+    
+    #remove first point artifact
+    idx=((Fj==1.0))
+    H=H[~idx]
+    Hr=Hr[~idx]
+    M=M[~idx]
+    Fk=Fk[~idx]
+    Fj=Fj[~idx]
+    Ft=Ft[~idx]
+    Fk=Fk-np.min(Fk)+1. #reset FORC number if required
+    Fj=Fj-1.
+    
+    #repack
+    X["Fj"] = Fj
+    X["H"] = H   
+    X["Hr"] = Hr
+    X["M"] = M
+    X["Fk"] = Fk
+    X["Fj"] = Fj
+    X["Ft"] = Ft        
+    
+    return X
+
+def drift_correction(X):
   
-def lowerbranch_subtract(data):
+    #unpack
+    M = X["M"]
+    Mcal = X["Mcal"]    
+    Ft = X["Ft"]
+    tcal = X["tcal"]
+  
+    #perform drift correction
+    M=M*Mcal[0]/np.interp(Ft,tcal,Mcal,left=np.nan) #drift correction
+  
+    #repack
+    X["M"] = M
+  
+    return X
+
+def CGS2SI(X):
+    
+    X["H"] = X["H"]/1E4 #convert Oe into T
+    X["M"] = X["M"]/1E3 #convert emu to Am2
+      
+    return X
+
+def lowerbranch_subtract(X):
     """Function to subtract lower hysteresis branch from FORC magnetizations
     
     Inputs:
@@ -1060,29 +517,43 @@ def lowerbranch_subtract(data):
     """
     
     #unpack
-    H = data["H"]    
-    Hr = data["Hr"]
-    M = data["M"]
-    Fk = data["Fk"]
-    Fj = data["Fj"]
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
+    dH = X["dH"]
     
-    idx=(Fj==1) #define the upper branch based on the 1st measurement point in each FORC
-    Hupper=-H[idx] #upper branch applied field (minus is to convert to lower branch)
-    Mupper=-M[idx] #upper branch magnetization (minus is to convert to lower branch)
+    Hmin = np.min(H)
+    Hmax = np.max(H)
+    Hbar = np.zeros(1)
+    Mbar = np.zeros(1)
 
-    idx=(Fk==np.max(Fk)) #use the last FORC to represent the lower branch
-    Hlower=H[idx] #lower branch applied field
-    Mlower=M[idx] #lower branch magnetization
+    Nbar = 10
+    nH = int((Hmax - Hmin)/dH)
+    Hi = np.linspace(Hmin,Hmax,nH*50+1)
 
-    #adjust offset between upper and lower branch if required
-    Mtest=Mupper-np.interp(Hlower[-1],Hupper,Mupper,left=np.nan,right=np.nan)+Mlower[-1]
-    idx=Hupper>Hlower[-1]
-    Hupper=Hupper[idx]
-    Mupper=Mtest[idx]
-
-    Hlower=np.concatenate((Hlower,Hupper)) #combine fields
-    Mlower=np.concatenate((Mlower,Mupper)) #correct upper offset and combine magnetizations
+    for i in range(Hi.size):
+        idx = (H>=Hi[i]-dH/2) & (H<=Hi[i]+dH/2)
     
+        H0 = H[idx][-Nbar:]
+        M0 = M[idx][-Nbar:]
+    
+        Hbar = np.concatenate((Hbar,H0))
+        Mbar = np.concatenate((Mbar,M0))
+    
+    Hbar = Hbar[1:]
+    Mbar = Mbar[1:]
+    Mhat = np.zeros(Hi.size)
+
+    #perform basic loess
+    for i in range(Hi.size):
+        idx = (Hbar>=Hi[i]-2.5*dH) & (Hbar<=Hi[i]+2.5*dH)
+        p = np.polyfit(Hbar[idx],Mbar[idx],2)
+        Mhat[i] = np.polyval(p,Hi[i])
+    
+    Hlower = Hi
+    Mlower = Mhat
     Mcorr=M-np.interp(H,Hlower,Mlower,left=np.nan,right=np.nan) #subtracted lower branch from FORCs via interpolation
 
     Fk=Fk[~np.isnan(Mcorr)] #remove any nan
@@ -1093,177 +564,677 @@ def lowerbranch_subtract(data):
     Mcorr = Mcorr[~np.isnan(Mcorr)] #remove any nan
     
     #repack
-    data["H"] = H    
-    data["Hr"] = Hr
-    data["M"] = M
-    data["Fk"] = Fk
-    data["Fj"] = Fj
-    data["DM"] = Mcorr
+    X["H"] = H    
+    X["Hr"] = Hr
+    X["M"] = M
+    X["Fk"] = Fk
+    X["Fj"] = Fj
+    X["DM"] = Mcorr
+    
+    return X
+##### END SECTION: PREPROCESSING  #################################################
+
+##### BEGIN SECTION: MODEL FUNCTIONS  #################################################
+def model_options(X):
+    
+    style = {'description_width': 'initial'} #general style settings
+    
+    #horizontal line widget
+    HL = widgets.HTML(value='<hr style="height:3px;border:none;color:#333;background-color:#333;" />')
+    
+
+    M_title = widgets.HTML(value='<h3>Select data type:</h3>')
+    M_widge = widgets.RadioButtons(options=['Magnetisations', 'Lower branch subtracted'],
+                                   value='Magnetisations',
+                                   style=style)
+
+
+    ### Horizontal smoothing ###
+    S_title = widgets.HTML(value='<h3>Set smoothing parameters:</h3>')
+    
+    #SC widgets
+    Sc_widge = widgets.FloatRangeSlider(
+        value=[3,7],
+        min=2,
+        max=10,
+        step=0.25,
+        description='Select $s_c$ range:',
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='.2f',
+        style = style
+    )
+
+    Sb_widge = widgets.FloatRangeSlider(
+        value=[3,7],
+        min=2,
+        max=10,
+        step=0.25,
+        description='Select $s_u$ range:',
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='.2f',
+        style = style
+    )
     
     
-    return data
-  
-def plot_hysteresis(fn,pp,data):
+    lambdaSc_widge = widgets.FloatSlider(
+        value=0.05,
+        min=0,
+        max=0.2,
+        step=0.025,
+        description='Select $\lambda_{c}$:',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='.3f',
+        style = style
+    )
 
-  #unpack 
-  sample = pp["name"]
-  M = data["M"]
-  H = data["H"]
-  Fk = data["Fk"]
-
-  #mpl.style.use('seaborn-whitegrid')
-  hfont = {'fontname':'STIXGeneral'}
-
-  fig, ax = plt.subplots(figsize=(8,8))
-
-  for i in range(5,int(np.max(Fk)),7):
+    lambdaSb_widge = widgets.FloatSlider(
+        value=0.05,
+        min=0,
+        max=0.2,
+        step=0.025,
+        description='Select $\lambda_{u}$:',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='.3f',
+        style = style
+    )
     
-    if pp["unit"] == "Cgs":
-      ax.plot(H[Fk==i],M[Fk==i],'-k')
-    else:
-      ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
+    
+    #combined widget
+    SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambdaSc_widge,lambdaSb_widge])
+    
+    ### Setup Multiprocessing tab ####################
+    #start cluster to test for number of cores
+    
+    #if 'cluster' in X:
+    #    X['cluster'].close()
 
-  ax.grid(False)
-  ax.minorticks_on()
-  ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
-  ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
+    #X['cluster'] = LocalCluster()
+    #X['ncore'] = len(X['cluster'].workers)
+    #X['cluster'].close()
+    X['ncore']=os.cpu_count()
+    
+    #header
+    dask_title = widgets.HTML(value='<h3>DASK multiprocessing:</h3>')
 
-  ax.spines['left'].set_position('zero')
-  ax.spines['left'].set_color('k')
+    #selection widget
+    dask_widge=widgets.IntSlider(
+        value=X['ncore'],
+        min=1,
+        max=X['ncore'],
+        step=1,
+        description='Number of cores:',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='d',
+        style=style
+    )
+    
+    #final multiprocessing widget
+    mpl_widge = VBox([dask_title,dask_widge])
+    
+    ### CONSTRUCT TAB MENU #############
+    method_nest = widgets.Tab()
+    method_nest.children = [SC,mpl_widge]
+    method_nest.set_title(0, 'REGRESSION')
+    method_nest.set_title(1, 'PROCESSING')
+    
+    display(method_nest)
+    
+    ### SETUP OUTPUT ####
+    X['Mtype']=M_widge
+    X['SC']=Sc_widge
+    X['SB']=Sb_widge
+    X['lambdaSC']=lambdaSc_widge
+    X['lambdaSB']=lambdaSb_widge
+    X['workers']=dask_widge
+    
+    return X
 
-  # turn off the right spine/ticks
-  ax.spines['right'].set_color('none')
-  ax.yaxis.tick_left()
-  ylim=np.max(np.abs(ax.get_ylim()))
-  ax.set_ylim([-ylim,ylim])
-  
-  #ax.set_ylim([-1,1])
-  yticks0 = ax.get_yticks()
-  yticks = yticks0[yticks0 != 0]
-  ax.set_yticks(yticks)
-  
-  # set the y-spine
-  ax.spines['bottom'].set_position('zero')
-  ax.spines['bottom'].set_color('k')
+def MK92_weighted_regress(X,y,w,alpha,beta):
+    
+    #PERFORM WEIGHTED REGRESSION FOLLOWING MACKAY 1992
+    w = np.sqrt(w / np.linalg.norm(w))
+    w = w/np.sum(w)*y.size
+    W = np.diag(w)
+    
+    XTW = X.T @ W
+    M = XTW @ X
+    N = np.size(y)
+    I = np.eye(np.size(M,axis=1))
 
-  # turn off the top spine/ticks
-  ax.spines['top'].set_color('none')
-  ax.xaxis.tick_bottom()
-  xmax = np.max(np.abs(ax.get_xlim()))
-  ax.set_xlim([-xmax,xmax])
-  #Xticks = ax.get_xticks()
-  #Xidx = np.argwhere(np.abs(Xticks)>0.01)
-  #ax.set_xticks(Xticks[Xidx])
+    XT_y = np.dot(XTW, y)
+    lamb,VhT = linalg.eigh(M)
+    lamb = np.real(lamb)
+    Vh = VhT.T
+    
+    for i in range(100):
 
-  #label x-axis according to unit system
-  if pp["unit"]=="Cgs":
-    ax.set_xlabel(r'$H [Oe]$',horizontalalignment='right', position=(1,25), fontsize=12)
-  else:
-    ax.set_xlabel(r'$B [mT]$',horizontalalignment='right', position=(1,25), fontsize=12)
-
-  #label y-axis according to unit system
-  if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
-    ax.set_ylabel(r'$M [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel(r'$M [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
-    ax.set_ylabel(r'$M [emu/g]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel(r'$M [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-
-  if pp["plot"] == 'Plot results and download':
-    idx = fn.rfind('.')
-    if idx<0:
-        outputfile = fn+'_hys.pdf'
-    else:
-        outputfile = fn[0:idx]+'_hys.pdf'
+        ab0=[alpha, beta]
+    
+        Wprec = alpha*I + beta*M # Bishop eq 3.54
+        Wbar = np.dot(VhT,Vh / (lamb + alpha / beta)[:, np.newaxis]) # Bishop eq 3.53
+        Wbar = np.dot(Wbar, XT_y) # Bishop eq 3.53 (cont.) 
         
-    plt.savefig(outputfile, dpi=150, bbox_inches="tight")
-
-  plt.show()
-  
-  
-def plot_delta_hysteresis(fn,pp,data):
-
-  #unpack 
-  sample = pp["name"]
-  M = data["DM"]
-  H = data["H"]
-  Fk = data["Fk"]
-
-  #mpl.style.use('seaborn-whitegrid')
-  hfont = {'fontname':'STIXGeneral'}
-
-  fig, ax = plt.subplots(figsize=(8,8))
-
-  for i in range(5,int(np.max(Fk)),7):
+        gamma = np.sum(lamb / (alpha + lamb)) # Bishop eq 3.91
+        alpha = gamma / np.maximum(np.sum(np.square(Wbar)),1.0e-10) # Bishop eq 3.91 (avoid division by zero)
+        beta = (N - gamma) / np.sum(np.square(y - X @ Wbar)) # Bishop eq 3.95
     
-    if pp["unit"] == "Cgs":
-      ax.plot(H[Fk==i],M[Fk==i],'-k')
-    else:
-      ax.plot(H[Fk==i]*1000,M[Fk==i],'-k')
-      
-  ax.grid(False)
-  ax.minorticks_on()
-  ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
-  ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
+        if np.allclose(ab0,[alpha,beta]):
+            break
+    
+    #Once model is optimized estimate the log-evidence (Bishop equ 3.86)
+    M = X.shape[1]
+    ln_p = 0.5*M*np.log(alpha)
+    ln_p +=0.5*N*np.log(beta)
+    ln_p -=0.5*beta*np.sum(np.square(y - X @ Wbar))
+    ln_p -=0.5*alpha*np.sum(Wbar**2)
+    ln_p -= 0.5*np.linalg.slogdet(Wprec)[1]
+    ln_p -= 0.5*N*np.log(2.0*np.pi)
+    
+    return Wbar, Wprec, ln_p, alpha, beta
 
-  ax.spines['left'].set_position('zero')
-  ax.spines['left'].set_color('k')
+def variforc_regression_evidence(sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,Hc,Hb,dH,M,Hc0,Hb0,X):
 
-  # turn off the right spine/ticks
-  ax.spines['right'].set_color('none')
-  ax.yaxis.tick_left()
-  #ax.set_ylabel('M / M$_0$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  ylim=np.max(np.abs(ax.get_ylim()))
-  ax.set_ylim([-ylim*0.1,ylim])
-  yticks0 = ax.get_yticks()
-  yticks = yticks0[yticks0 != 0]
-  ax.set_yticks(yticks)
-  
-  # set the y-spine
-  ax.spines['bottom'].set_position('zero')
-  ax.spines['bottom'].set_color('k')
-
-  # turn off the top spine/ticks
-  ax.spines['top'].set_color('none')
-  ax.xaxis.tick_bottom()
-  #ax.set_xlabel('B [mT]',horizontalalignment='right', position=(1,25), fontsize=12)
-  xmax = np.max(np.abs(ax.get_xlim()))
-  ax.set_xlim([-xmax,xmax])
-  Xticks = ax.get_xticks()
-  Xidx = np.argwhere(np.abs(Xticks)>0.01)
-  ax.set_xticks(Xticks[Xidx])
-
-   #label x-axis according to unit system
-  if pp["unit"]=="Cgs":
-    ax.set_xlabel(r'$H [Oe]$',horizontalalignment='right', position=(1,25), fontsize=12)
-  else:
-    ax.set_xlabel(r'$B [mT]$',horizontalalignment='right', position=(1,25), fontsize=12)
-
-  #label y-axis according to unit system
-  if ((pp["unit"]=="SI") and (pp["mass"] > 0.0)):
-    ax.set_ylabel(r'$M - M_{hys} [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="SI") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel(r'$M - M_{hys} [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="Cgs") and (pp["mass"] > 0.0)): 
-    ax.set_ylabel(r'$M - M_{hys} [emu/g]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-  elif ((pp["unit"]=="Cgs") and (pp["mass"] <= 0.0)): 
-    ax.set_ylabel(r'$M - M_{hys} [emu]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
-
-  if pp["plot"] == 'Plot results and download':
-    idx = fn.rfind('.')
-    if idx<0:
-        outputfile = fn+'_delta.pdf'
-    else:
-        outputfile = fn[0:idx]+'_delta.pdf'
+    # function to test all models
+    H0 = Hc0+Hb0
+    Hr0 = Hb0-Hc0
+    
+    rho = np.zeros(Hc0.size)
+    Midx = np.zeros(Hc0.size)
+       
+    for i in range(Hc0.size):
+        ln_p = np.zeros(5)
         
-    plt.savefig(outputfile, dpi=150, bbox_inches="tight")
+        w, idx = vari_weights(sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,Hc,Hb,dH,Hc0[i],Hb0[i])
+        
+        #perform 2nd-order least squares to estimate magnitude of beta
+        Aw = X[idx,0:6] * np.sqrt(w[:,np.newaxis])
+        Bw = M[idx] * np.sqrt(w)
+        p=np.linalg.lstsq(Aw, Bw, rcond=0)[0]
+        hat = np.dot(X[idx,0:6],p)
+        beta = 1/np.mean((M[idx]-hat)**2)
+        alpha = beta*0.0002
+        
+        #perform 1st regression for model selection    
+        _, _, ln_p[0], _, _ = MK92_weighted_regress(X[idx,0:3],M[idx],w,alpha=alpha,beta=beta)
+        
+        _, _, ln_p[1], _, _ = MK92_weighted_regress(X[idx,0:5],M[idx],w,alpha=alpha,beta=beta)        
+        
+        Wbar, _, ln_p[2], _, _ = MK92_weighted_regress(X[idx,0:6],M[idx],w,alpha=alpha,beta=beta)
+        rho2 = -0.5*Wbar[5]
+        
+        Wbar, _, ln_p[3], _, _ = MK92_weighted_regress(X[idx,0:10],M[idx],w,alpha=alpha,beta=beta)
+        rho3 = -0.5*Wbar[5]-Wbar[8]*H0[i]-Wbar[9]*Hr0[i]
 
-  plt.show()
+        _, _, ln_p[4], _, _ = MK92_weighted_regress(X[idx,:],M[idx],w,alpha=alpha,beta=beta)
+        #rho4[i] = -0.5*Wbar[5]-Wbar[8]*H0[i]-Wbar[9]*Hr0[i]-(Wbar[11]*3*H[i]**2)/2-(Wbar[13]*3*Hr[i]**2)/2-Wbar[12]*2*H[i]*Hr[i]
 
-###
+        Midx[i]=np.argmax(ln_p)        
+    
+        if Midx[i]==2:
+            rho[i]=rho2
+        elif Midx[i]>2:
+            rho[i]=rho3
+            
+    return np.column_stack((Midx,rho))
 
+def triangulate_rho(X):
+
+    rho = X['rho']
+    Hc = X['Hc']
+    Hb = X['Hb']
+    dH = X['dH']
+    
+    #PERFORM GRIDDING AND INTERPOLATION FOR FORC PLOT
+    X['Hc1'], X['Hc2'], X['Hb1'], X['Hb2'] = measurement_limts(X)
+    Hc1 = 0-3*dH
+    Hc2 = X['Hc2']
+    Hb1 = X['Hb1']-X['Hc2']
+    Hb2 = X['Hb2']
+
+    #create grid for interpolation
+    Nx = np.ceil((Hc2-Hc1)/dH)+1 #number of points along x
+    Ny = np.ceil((Hb2-Hb1)/dH)+1 #number of points along y
+    xi = np.linspace(Hc1,Hc2,int(Nx))
+    yi = np.linspace(Hb1,Hb2,int(Ny))
+
+    #perform triangluation and interpolation
+    triang = tri.Triangulation(Hc, Hb)
+    interpolator = tri.LinearTriInterpolator(triang, rho)
+    Xi, Yi = np.meshgrid(xi, yi)
+    Zi = interpolator(Xi, Yi)
+    
+    X['Hc1'] = Hc1
+    X['Xi']=Xi
+    X['Yi']=Yi
+    X['Zi']=Zi
+    
+    return X
+
+def plot_model_results(X):
+
+    ## UNPACK VARIABLE ##
+    Xi = X['Xi']
+    Yi = X['Yi']    
+    Zi = X['Zi']
+    Midx = X['Midx']
+    Hb1 = X['Hb1']-X['Hc2']
+    Hb2 = X['Hb2']
+    Hc1 = X['Hc1']
+    Hc2 = X['Hc2']
+    Hc = X['Hc']
+    Hb = X['Hb']
+    
+    fig = plt.figure(figsize=(12,4.75))
+
+    ##################### PLOT FORC ######################
+    cmap,vmin,vmax = FORCinel_colormap(Zi)
+    ax2 = fig.add_subplot(1,3,2)
+    CS = ax2.contourf(Xi, Yi, Zi, 50, cmap = cmap, vmin=vmin, vmax=vmax)       
+    cbar2 = fig.colorbar(CS,fraction=0.055, pad=0.05,label='$Am^2$ $T^{-2}$')
+    cbar2.ax.tick_params(labelsize=10)
+    #cbar2.ax.set_title('$Am^2 T^{-2} (x10^{-6})$',fontsize=10)
+    ax2.set_xlim((0,Hc2))
+    ax2.set_ylim((Hb1,Hb2))
+    ax2.set_ylabel('$\mu_0H_u$ [T]',fontsize=12)
+    ax2.set_xlabel('$\mu_0H_c$ [T]',fontsize=12)
+    ax2.set_aspect('equal')
+    ax2.minorticks_on()
+    ax2.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax2.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
+    ax2.plot((0,Hc2),(Hb1,X['Hb1']),'--k')
+
+    ##################### PLOT MODEL ORDER ######################
+
+    #DEFINE COLORMAP
+    cseq=[]
+    cseq.append((68/255,119/255,170/255,1))
+    cseq.append((102/255,204/255,238/255,1))
+    cseq.append((34/255,136/255,51/255,1))
+    cseq.append((204/255,187/255,68/255,1))
+    cseq.append((238/255,102/255,119/255,1))
+
+    ax1 = fig.add_subplot(1,3,1)
+    ax1.plot(Hc[Midx==0],Hb[Midx==0],'.',label='$H_1$',markeredgecolor=cseq[0],markerfacecolor=cseq[0],markersize=3)
+    ax1.plot(Hc[Midx==1],Hb[Midx==1],'.',label='$H_{2a}$',markeredgecolor=cseq[1],markerfacecolor=cseq[1],markersize=3)
+    ax1.plot(Hc[Midx==2],Hb[Midx==2],'.',label='$H_{2b}$',markeredgecolor=cseq[2],markerfacecolor=cseq[2],markersize=3)
+    ax1.plot(Hc[Midx==3],Hb[Midx==3],'.',label='$H_3$',markeredgecolor=cseq[3],markerfacecolor=cseq[3],markersize=3)
+    ax1.plot(Hc[Midx==4],Hb[Midx==4],'.',label='$H_4$',markeredgecolor=cseq[4],markerfacecolor=cseq[4],markersize=3)
+    ax1.set_xlim((0,Hc2))
+    ax1.set_ylim((Hb1,Hb2))
+    ax1.set_xlabel('$\mu_0H_c$ [T]',fontsize=12)
+    ax1.set_ylabel('$\mu_0H_u$ [T]',fontsize=12)
+    ax1.set_aspect('equal')
+    ax1.minorticks_on()
+    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
+    ax1.legend(fontsize=12,labelspacing=0,handletextpad=-0.6,loc=4,bbox_to_anchor=(1.035,-0.02),frameon=False,markerscale=2.5)
+    cbar1 = fig.colorbar(CS,fraction=0.055, pad=0.05)
+    cbar1.ax.tick_params(labelsize=10)
+    cbar1.remove()
+
+    ########## PLOT HISTOGRAM #############
+
+    ax3 = fig.add_subplot(1,3,3)
+    N, bins, patches = ax3.hist(Midx,bins=(-0.5,0.5,1.5,2.5,3.5,4.5),rwidth=0.8,density=True)
+
+    for i in range(5):
+        patches[i].set_facecolor(cseq[i])
+
+    ax3.set_xticks(range(5))    
+    ax3.set_xticklabels(('$H_1$', '$H_{2a}$', '$H_{2b}$', '$H_3$', '$H_4$'),size=12)
+
+    ax3.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax3.set_xlabel('Selected model',fontsize=12)
+    ax3.set_ylabel('Proportion of cases [0-1]',fontsize=12)
+    ax3.set_xlim((-0.5,4.5))
+
+    ##################### OUTPUT PLOTS ######################
+    outputfile = X["sample"].value+'_model.eps'
+    plt.tight_layout()
+    plt.savefig(outputfile)
+    plt.show()
+
+    return X
+
+def measurement_limts(X):
+    """Function to find measurement limits and conver units if required
+
+    Inputs:
+    file: name of data file (string)    
+
+
+    Outputs:
+    Hc1: minimum Hc
+    Hc2: maximum Hc
+    Hb1: minimum Hb
+    Hb2: maximum Hb
+    """    
+    
+    string='Hb2' #upper Hb value for the FORC box
+    Hb2=parse_header(X["fn"],string)
+
+    string='Hb1' #lower Hb value for the FORC box
+    Hb1=parse_header(X["fn"],string)
+
+    string='Hc2' #upper Hc value for the FORC box
+    Hc2=parse_header(X["fn"],string)
+
+    string='Hc1' #lower Hc value for the FORC box
+    Hc1=parse_header(X["fn"],string)
+
+    if X['unit']=='Cgs': #convert CGS to SI
+        Hc2=Hc2/1E4 #convert from Oe to T
+        Hc1=Hc1/1E4 #convert from Oe to T
+        Hb2=Hb2/1E4 #convert from Oe to T
+        Hb1=Hb1/1E4 #convert from Oe to T  
+
+    return Hc1, Hc2, Hb1, Hb2
+
+def FORCinel_colormap(Z):
+
+    #setup initial colormap assuming that negative range does not require extension
+    cdict = {'red':     ((0.0,  127/255, 127/255),
+                         (0.1387,  255/255, 255/255),
+                         #(0.1597,  255/255, 255/255),
+                         (0.1807,  255/255, 255/255),
+                         (0.3193,  102/255, 102/255),
+                       (0.563,  204/255, 204/255),
+                       (0.6975,  204/255, 204/255),
+                       (0.8319,  153/255, 153/255),
+                       (0.9748,  76/255, 76/255),
+                       (1.0, 76/255, 76/255)),
+
+            'green':   ((0.0,  127/255, 127/255),
+                         (0.1387,  255/255, 255/255),
+                         #(0.1597,  255/255, 255/255),
+                         (0.1807,  255/255, 255/255),
+                       (0.3193,  178/255, 178/255),
+                        (0.563,  204/255, 204/255),
+                       (0.6975,  76/255, 76/255),
+                       (0.8319,  102/255, 102/255),
+                       (0.9748,  25/255, 25/255),
+                       (1.0, 25/255, 25/255)),
+
+             'blue':   ((0.0,  255/255, 255/255),
+                         (0.1387,  255/255, 255/255),
+                         #(0.1597,  255/255, 255/255),
+                         (0.1807,  255/255, 255/255),
+                       (0.3193,  102/255, 102/255),
+                        (0.563,  76/255, 76/255),
+                       (0.6975,  76/255, 76/255),
+                       (0.8319,  153/255, 153/255),
+                       (0.9748,  76/255, 76/255),
+                       (1.0, 76/255, 76/255))}
+
+    if np.abs(np.min(Z))<=np.max(Z)*0.19: #negative extension is not required
+        #cmap = LinearSegmentedColormap('forc_cmap', cdict)
+        vmin = -np.max(Z)*0.19
+        vmax = np.max(Z)
+    else: #negative extension is required
+        vmin=np.min(Z)
+        vmax=np.max(Z)        
+    
+    anchors = np.zeros(9)
+    anchors[1]=(-0.015*vmax-vmin)/(vmax-vmin)
+    anchors[2]=(0.015*vmax-vmin)/(vmax-vmin)
+    anchors[3]=(0.19*vmax-vmin)/(vmax-vmin)
+    anchors[4]=(0.48*vmax-vmin)/(vmax-vmin)
+    anchors[5]=(0.64*vmax-vmin)/(vmax-vmin)
+    anchors[6]=(0.80*vmax-vmin)/(vmax-vmin)
+    anchors[7]=(0.97*vmax-vmin)/(vmax-vmin)
+    anchors[8]=1.0
+
+    Rlst = list(cdict['red'])
+    Glst = list(cdict['green'])
+    Blst = list(cdict['blue'])
+
+    for i in range(9):
+        Rlst[i] = tuple((anchors[i],Rlst[i][1],Rlst[i][2]))
+        Glst[i] = tuple((anchors[i],Glst[i][1],Glst[i][2]))
+        Blst[i] = tuple((anchors[i],Blst[i][1],Blst[i][2]))
+        
+    cdict['red'] = tuple(Rlst)
+    cdict['green'] = tuple(Glst)
+    cdict['blue'] = tuple(Blst)
+
+    cmap = LinearSegmentedColormap('forc_cmap', cdict)
+
+    return cmap, vmin, vmax
+
+def calculate_model(X):
+
+    if ('client' in X) == False: #start DASK if required
+        c = LocalCluster(n_workers=X['workers'].value)
+        X['client'] = Client(c)
+    
+    H = X['H']
+    Hr = X['Hr']
+    dH = X['dH']
+
+    #form top-level design matrix
+    X0 = np.column_stack((np.ones(H.size),H,Hr,H**2,Hr**2,H*Hr,H**3,Hr**3,H**2*Hr,H*Hr**2,
+                    H**4,H**3*Hr,H**2*Hr**2,H*Hr**3,Hr**4))
+    H = X['H']
+    Hr = X['Hr']
+    Hc = (H-Hr)/2
+    Hb = (H+Hr)/2
+    X['Hc'] = Hc
+    X['Hb'] = Hb
+
+    if X['Mtype'].value=='Magnetisations':
+        M = X['M']
+    else:
+        M = X['DM']
+
+    D_Hc = X['client'].scatter(Hc,broadcast=True)
+    D_Hb = X['client'].scatter(Hb,broadcast=True)
+    D_M = X['client'].scatter(M,broadcast=True)
+    D_X = X['client'].scatter(X0,broadcast=True)
+
+    #Split arrays for DASK
+    Nsplit = 30
+    Hc0 = np.array_split(Hc,Nsplit)
+    Hb0 = np.array_split(Hb,Nsplit)
+
+    sc0 = X['SC'].value[0]
+    sc1 = X['SC'].value[1]
+    sb0 = X['SB'].value[0]
+    sb1 = X['SB'].value[1]
+    lamb_sc = X['lambdaSC'].value
+    lamb_sb = X['lambdaSB'].value
+
+    #Split jobs over DASK
+    jobs = []
+    for i in range(len(Hc0)):
+        job = X['client'].submit(variforc_regression_evidence,sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,D_Hc,D_Hb,dH*np.sqrt(2),D_M,Hc0[i],Hb0[i],D_X)
+        jobs.append(job)
+
+    results = X['client'].gather(jobs)
+
+    Midx = results[0][:,0]
+    rho = results[0][:,1]
+
+    for i in range(len(results)-1):
+        Midx=np.concatenate((Midx,results[i+1][:,0]))
+        rho=np.concatenate((rho,results[i+1][:,1]))
+    
+    X['rho'] = rho
+    X['Midx'] = Midx
+
+    X = triangulate_rho(X)
+    X = plot_model_results(X)
+    
+    return X
+##### END SECTION: MODEL FUNCTIONS  #################################################
+
+##### BEGIN SECTION: FORC plotting  #################################################
+def FORC_plot(X):
+
+    #unpack data
+    #rho = data['rho']
+    #H = data['H']
+    #Hc = data['Hc']
+    #Hb = data['Hb']
+
+    Xi = X['Xi']
+    Yi = X['Yi']
+    Zi = X['Zi']
+    Hc1 = X['Hc1']
+    Hc2 = X['Hc2']
+    Hb1 = X['Hb1']
+    Hb2 = X['Hb2']
+
+    #Set up widgets for interactive plot
+    style = {'description_width': 'initial'} #general style settings
+    
+    #DEFINE INTERACTIVE WIDGETS
+    
+    #should a colorbar be included
+    colorbar_widge = widgets.Checkbox(value=False, description = 'Include color scalebar',style=style) 
+    
+    #Frequency for contour lines to be included in plot
+    contour_widge = widgets.Select(
+        options=[['Select contour frequency',-1],
+                 ['Every level',1],
+                 ['Every 2nd level',2],
+                 ['Every 3rd level',3],
+                 ['Every 4th level',4],
+                 ['Every 5th level',5],
+                 ['Every 10th level',10],
+                 ['Every 20th level',20],
+                 ['Every 50th level',50],
+                ],
+        value=-1,
+        rows=1,
+        description='Plot contours',style=style)
+    
+    contourpts_widge = widgets.FloatSlider(value=1.0,min=0.5,max=3.0,step=0.5, description = 'Contour line width [pts]',style=style)
+
+    #check box for plot download
+    download_widge = widgets.Checkbox(value=False, description = 'Download plot',style=style) 
+    
+    #How many contour levels should be included
+    level_widge = widgets.Select(
+        options=[['20',20],['30',30],['50',50],['75',75],['100',100],['200',200],['500',500]],
+        value=50,
+        rows=1,
+        description='Number of color levels',style=style)
+
+    #X-axis minimum value
+    xmin_widge = widgets.FloatText(value=0,description='Minimum $\mu_0H_c$ [T]',style=style,step=0.001)    
+    xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum $\mu_0H_c$ [T]',style=style,step=0.001)
+    ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum $\mu_0H_u$ [T]',style=style,step=0.001)
+    ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum $\mu_0H_u$ [T]',style=style,step=0.001)
+
+    #launch the interactive FORC plot
+    x = interactive(forcplot,
+             Xi=fixed(Xi), #X point grid
+             Yi=fixed(Yi), #Y point grid
+             Zi=fixed(Zi), #interpolated Z values
+             fn=fixed(X['sample']), #File information
+             mass=fixed(X['mass']), #Preprocessing information
+             colorbar=colorbar_widge, #Include colorbar             
+             level=level_widge, #Number of levels to plot 
+             contour=contour_widge, #Contour levels to plot
+             contourpts=contourpts_widge, #Contour line width
+             xmin=xmin_widge, #X-minimum
+             xmax=xmax_widge, #X-maximum
+             ymin=ymin_widge, #Y-minimum
+             ymax=ymax_widge, #Y-maximum
+             download = download_widge #download plot
+            )
+    
+    #create tabs
+    tab_nest = widgets.Tab()
+    # tab_nest.children = [tab_visualise]
+    tab_nest.set_title(0, 'FORC PLOTTING')
+
+    #interact function in isolation
+    tab_nest.children = [VBox(children = x.children)]
+    display(tab_nest)
+    
+    #display(x) #display the interactive plot
+
+def forcplot(Xi,Yi,Zi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ymin,ymax,download):
+    
+
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_subplot(1,1,1)
+    
+    if mass.value<0.0:        
+        Xi_new = Xi
+        Yi_new = Yi
+        Zi_new = Zi
+        xlabel_text = '$\mu_0 H_c [T]$' #label Hc axis [SI units]
+        ylabel_text = '$\mu_0 H_u [T]$' #label Hu axis [SI units]
+        cbar_text = '$Am^2 T^{-2}$'
+    else:
+        Xi_new = Xi
+        Yi_new = Yi
+        Zi_new = Zi / (mass.value/1000.0)
+        xlabel_text = '$\mu_0 H_c [T]$' #label Hc axis [SI units]
+        ylabel_text = '$\mu_0 H_u [T]$' #label Hu axis [SI units]
+        cbar_text = '$Am^2 T^{-2} kg^{-1}$'
+        
+
+    #define colormaps
+    idx=(Xi_new>=xmin) & (Xi_new<=xmax) & (Yi_new>=ymin) & (Yi_new<=ymax) #find points currently in view
+    cmap,vmin,vmax = FORCinel_colormap(Zi_new[idx])
+
+    CS = ax.contourf(Xi_new, Yi_new, Zi_new, level, cmap = cmap, vmin=vmin, vmax=vmax)       
+    if (contour>0) & (contour<level):
+        CS2 = ax.contour(CS, levels=CS.levels[::contour], colors='k',linewidths=contourpts)
+
+    ax.set_xlabel(xlabel_text,fontsize=14) #label Hc axis [SI units]
+    ax.set_ylabel(ylabel_text,fontsize=14) #label Hu axis [SI units]  
+
+    # Set plot Xlimits
+    xlimits = np.sort((xmin,xmax))
+    ax.set_xlim(xlimits)
+    
+    #Set plot Ylimits
+    ylimits = np.sort((ymin,ymax))
+    ax.set_ylim(ylimits)
+    
+    #Set ticks and plot aspect ratio
+    ax.tick_params(labelsize=14)
+    ax.set_aspect('equal') #set 1:1 aspect ratio
+    ax.minorticks_on() #add minor ticks
+    
+    #Add colorbar
+    if colorbar == True:    
+        cbar = fig.colorbar(CS,fraction=0.04, pad=0.08)
+        cbar.ax.tick_params(labelsize=14)
+        #cbar.ax.set_title(cbar_text,fontsize=14)
+        cbar.set_label(cbar_text,fontsize=14)
+    
+    #Activate download to same folder as data file
+    if download==True:
+        outputfile = fn.value+'_FORC.eps'
+        plt.savefig(outputfile, dpi=300, bbox_inches="tight")
+    
+    #show the final plot
+    plt.show()
+
+##### END SECTION: FORC plotting  #################################################
+
+
+##### BEGIN SECTION: HELPER FUNCTIONS  #################################################
+
+  
 # define function which will look for lines in the header that start with certain strings
 def find_data_lines(fp):
     """Helper function to identify measurement lines in a FORC data file.
@@ -1335,7 +1306,7 @@ def parse_units(file):
     if idxSI>idxCGS: #determine which unit string was found in the headerline and output
         return 'SI'
     else:
-        return 'CGS'
+        return 'Cgs'
 
 def parse_mass(file):
     """Function to extract sample from FORC data file header
@@ -1377,7 +1348,7 @@ def calibration_times(file, Npts):
     Outputs:
     tcal_k: Estimated times at which the calibration points were measured (float)
     """    
-    Units=parse_units(file) #determine measurement system (CGS or SI)
+    unit=parse_units(file) #determine measurement system (CGS or SI)
 
     string='PauseRvrsl' #Pause at reversal field (new file format, -1 if not available)
     tr0=parse_header(file,string)
@@ -1419,7 +1390,7 @@ def calibration_times(file, Npts):
 
     N=np.max((N0,N1)) #select Number of FORCs depending on file format
 
-    if Units=='CGS':
+    if unit=='Cgs':
         alpha=alpha/1E4 #convert from Oe to T
         Hs=Hs/1E4 #convert from Oe to T
         Hb2=Hb2/1E4 #convert from Oe to T
@@ -1443,47 +1414,6 @@ def calibration_times(file, Npts):
 
     return tcal_k
 
-def measurement_limts(fn,pp):
-    """Function to find measurement limits and conver units if required
-
-    Inputs:
-    file: name of data file (string)    
-
-
-    Outputs:
-    Hc1: minimum Hc
-    Hc2: maximum Hc
-    Hb1: minimum Hb
-    Hb2: maximum Hb
-    """    
-    Units0=parse_units(fn) #determine measurement system (CGS or SI)
-    
-    string='Hb2' #upper Hb value for the FORC box
-    Hb2=parse_header(fn,string)
-
-    string='Hb1' #lower Hb value for the FORC box
-    Hb1=parse_header(fn,string)
-
-    string='Hc2' #upper Hc value for the FORC box
-    Hc2=parse_header(fn,string)
-
-    string='Hc1' #lower Hc value for the FORC box
-    Hc1=parse_header(fn,string)
-
-    if (Units0=='Cgs') & (pp['unit']=='SI'): #convert CGS to SI
-        Hc2=Hc2/1E4 #convert from Oe to T
-        Hc1=Hc1/1E4 #convert from Oe to T
-        Hb2=Hb2/1E4 #convert from Oe to T
-        Hb1=Hb1/1E4 #convert from Oe to T
-      
-    if (Units0=='SI') & (pp['unit']=='Cgs'): #convert SI to Cgs
-        Hc2=Hc2*1E4 #convert from Oe to T
-        Hc1=Hc1*1E4 #convert from Oe to T
-        Hb2=Hb2*1E4 #convert from Oe to T
-        Hb1=Hb1*1E4 #convert from Oe to T    
-
-    return Hc1, Hc2, Hb1, Hb2
-
 def measurement_times(file,Fk,Fj):
     """Function to estimate the time at which magnetization points were measured in a FORC sequence
     
@@ -1498,7 +1428,7 @@ def measurement_times(file,Fk,Fj):
     Outputs:
     Ft: Estimated times at which the magnetization points were measured (float)
     """    
-    Units=parse_units(file) #determine measurement system (CGS or SI)
+    unit=parse_units(file) #determine measurement system (CGS or SI)
 
     string='PauseRvrsl' #Pause at reversal field (new file format, -1 if not available)
     tr0=parse_header(file,string)
@@ -1540,7 +1470,7 @@ def measurement_times(file,Fk,Fj):
 
     N=np.max((N0,N1)) #select Number of FORCs depending on file format
 
-    if Units=='CGS':
+    if unit=='Cgs':
         alpha=alpha/1E4 #convert from Oe to T
         Hs=Hs/1E4 #convert from Oe to T
         Hb2=Hb2/1E4 #convert from Oe to T
@@ -1616,8 +1546,9 @@ def parse_calibration(file):
     Mcal=M0[idxSAT[0:-1]] #calibration magnetizations
     tcal=calibration_times(file,Hcal.size) #estimate the time of each calibratio measurement
 
-    Units=parse_units(file)
-    if Units=='CGS': #ensure SI units
+    unit = parse_units(file)
+    
+    if unit=='Cgs': #ensure SI units
         Hcal=Hcal/1E4 #convert from Oe to T
         Mcal=Mcal/1E3 #convert from emu to Am^2
 
@@ -1691,8 +1622,9 @@ def parse_measurements(file):
         Fk=np.concatenate((Fk,np.ones(idxEND[i]+1-idxSTART[i])+i))
         Fj=np.concatenate((Fj,np.arange(1,1+idxEND[i]+1-idxSTART[i])))
     
-    Units=parse_units(file) #Ensure use of SI units
-    if Units=='CGS':
+    unit = parse_units(file) #Ensure use of SI units
+    
+    if unit=='Cgs':
         H=H/1E4 #Convert Oe into T
         Hr=Hr/1E4 #Convert Oe into T
         M=M/1E3 #Convert emu to Am^2
@@ -1703,33 +1635,55 @@ def parse_measurements(file):
 
     return H, Hr, M, Fk, Fj, Ft, dH
 
-def play_tutorial(tv0):
+####### Define VARIFORC window functions #######
+def vari_T(u,s):
     
-    test = tv0['index'].value
-    idx = test.find(':')
-    index = int(test[0:idx])
+    T=np.zeros(u.shape) #initialize array
 
-    #define list of tutorial videos
-    tutorial = ['ilyS6K4ry3U'] #tutorial 1
-    tutorial.append('6kCS_nJC72g') #tutorial 2
-    tutorial.append('PSKQ3ZNQ_O8') #tutorial 3
+    absu=np.abs(u)
+    absu_s=absu-s
+
+    idx=(absu<=s)
+    T[idx]= 2.*absu_s[idx]**2 #3rd condition
+
+    idx=(absu<=s-0.5)
+    T[idx]=1.-2.*(absu_s[idx]+1.)**2 #2nd condition
+
+    idx=(absu<=s-1.)
+    T[idx]=1.0 #first condition
+  
+    return T
+
+
+def vari_W(Hc,Hc0,Hb,Hb0,dH,Sc,Sb):
+    # calculate grid of weights
+    #Hc = Hc grid
+    #Hb = Hb grid
+    #Hc0,Hb0 = center of weighting function
+    #dH = field spacing
+    #Sc = Hc-axis smoothing factor
+    #Sb = Hb-axis smoothing factor
+    
+    x=Hc-Hc0
+    y=Hb-Hb0
         
-    vid = YouTubeVideo(id = tutorial[index-1],autoplay=True)
-    display(vid)
+    return vari_T(x/dH,Sc)*vari_T(y/dH,Sb)
 
-def tutorial_options(*arg):
 
-    tut_widge = widgets.Dropdown(
-        options=['1: Introduction - working with FORCsensei', '2: Preprocessing options', '3: Plotting options'],
-        value='1: Introduction - working with FORCsensei',
-        description='Select:',
-        disabled=False,
-    )
-
-    display(tut_widge)
-
-    tv0 = {
-        "index": tut_widge,
-    }
+def vari_s(s0,s1,lamb,H,dH):
     
-    return tv0
+    #calculate local smoothing factor
+    RH = np.maximum(s0,np.abs(H)/dH)
+    LH = (1-lamb)*s1+lamb*np.abs(H)/dH
+    
+    return np.min((LH,RH))
+
+def vari_weights(sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,Hc,Hb,dH,Hc0,Hb0):
+       
+    Sc=vari_s(sc0,sc1,lamb_sc,Hc0,dH)
+    Sb=vari_s(sb0,sb1,lamb_sb,Hb0,dH)
+        
+    idx=((np.abs(Hc-Hc0)/dH<Sc) & (np.abs(Hb-Hb0)/dH<Sb))
+    weights=vari_W(Hc[idx],Hc0,Hb[idx],Hb0,dH,Sc,Sb)
+    
+    return weights, idx
