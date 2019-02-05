@@ -1,3 +1,3 @@
 # Example Package
 
-This is a simple example of forcsensei.
+This is a simple example of forcsensei package.
