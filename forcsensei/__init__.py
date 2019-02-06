@@ -1058,6 +1058,8 @@ def calculate_model(X):
     lamb_sc = X['lambdaSC'].value
     lamb_sb = X['lambdaSB'].value
 
+    display(X['client'])
+
     #Split jobs over DASK
     print('Entering DASK calculation')
     jobs = []
