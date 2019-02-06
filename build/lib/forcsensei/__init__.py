@@ -1016,11 +1016,11 @@ def FORCinel_colormap(Z):
 
 def calculate_model(X):
 
-    if ('client' in X) == False: #start DASK if required
-        c = LocalCluster(n_workers=X['workers'].value)
-        X['client'] = Client(c)
+#    if ('client' in X) == False: #start DASK if required
+#        c = LocalCluster(n_workers=X['workers'].value)
+#        X['client'] = Client(c)
     
-    X['client']
+ 
 
     H = X['H']
     Hr = X['Hr']
