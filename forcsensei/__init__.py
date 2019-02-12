@@ -647,9 +647,25 @@ def model_options(X):
         readout_format='.3f',
         style = style
     )
+
+    down_title = widgets.HTML(value='<h3>Specify downsampling:</h3>')
+    down_widge = widgets.IntSlider(
+        value=1000,
+        min=100,
+        max=X['M'].size,
+        step=1,
+        description='Number of points:',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=True,
+        readout_format='d',
+        style = style
+    )
     
     
     #combined widget
+    DS = VBox([down_title,down_widge])
     SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambdaSc_widge,lambdaSb_widge])
     
     ### Setup Multiprocessing tab ####################
@@ -686,9 +702,10 @@ def model_options(X):
     
     ### CONSTRUCT TAB MENU #############
     method_nest = widgets.Tab()
-    method_nest.children = [SC,mpl_widge]
+    method_nest.children = [SC,DS,mpl_widge]
     method_nest.set_title(0, 'REGRESSION')
-    method_nest.set_title(1, 'PROCESSING')
+    method_nest.set_title(1, 'DOWNSAMPLING')
+    method_nest.set_title(2, 'PROCESSING')
     
     display(method_nest)
     
@@ -698,6 +715,7 @@ def model_options(X):
     X['SB']=Sb_widge
     X['lambdaSC']=lambdaSc_widge
     X['lambdaSB']=lambdaSb_widge
+    X['Ndown']=down_widge
     X['workers']=dask_widge
     
     return X
@@ -823,8 +841,98 @@ def triangulate_rho(X):
     
     return X
 
-def plot_model_results(X):
+def plot_model_results_down(X):
 
+    #PLOT FULL MODEL
+    ## UNPACK VARIABLE ##
+    Midx = X['Midx']
+    Hb1 = X['Hb1']-X['Hc2']
+    Hb2 = X['Hb2']
+    Hc1 = X['Hc1']
+    Hc2 = X['Hc2']
+    Hc = X['Hci']
+    Hb = X['Hbi']
+    
+
+    fig = plt.figure(figsize=(12,4.75))
+
+    ##################### BOOTSTRAP PSI ######################
+    np.random.seed(999)
+    MC_psi = np.zeros(int(2E3))
+    for i in range(MC_psi.size):
+        bs = np.random.randint(0,Hc.size,Hc.size)
+        MC_psi[i] = np.sum((Midx[bs]>0) & (Midx[bs]<4)) / Hc.size
+    
+    ax2 = fig.add_subplot(1,3,2)
+    ax2.hist(MC_psi,bins=25,density=True)
+    ax2.set_xlabel('$\psi$',fontsize=12)
+    ax2.set_ylabel('Proportion of cases [0-1]',fontsize=12)
+    ylim2 = ax2.get_ylim()
+    xlim2 = ax2.get_xlim()
+
+    clow = np.percentile(MC_psi,2.5)
+    cupp = np.percentile(MC_psi,97.5)
+    ax2.plot((clow,clow),ylim2,'-r')
+    ax2.plot((cupp,cupp),ylim2,'-r')
+    ax2.text(clow-(xlim2[1]-xlim2[0])/12,ylim2[1]/1.1,'$\psi$ (2.5) = {:.3f}'.format(clow),fontsize=12, rotation=90,color='r')
+    ax2.text(cupp+(xlim2[1]-xlim2[0])/30,ylim2[1]/1.1,'$\psi$ (97.5) = {:.3f}'.format(cupp),fontsize=12, rotation=90,color='r')
+
+    ax2.set_ylim(ylim2)
+    ax2.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+
+    ##################### PLOT MODEL ORDER ######################
+
+    #DEFINE COLORMAP
+    cseq=[]
+    cseq.append((68/255,119/255,170/255,1))
+    cseq.append((102/255,204/255,238/255,1))
+    cseq.append((34/255,136/255,51/255,1))
+    cseq.append((204/255,187/255,68/255,1))
+    cseq.append((238/255,102/255,119/255,1))
+
+    ax1 = fig.add_subplot(1,3,1)
+    ax1.plot(Hc[Midx==0],Hb[Midx==0],'.',label='$H_1$',markeredgecolor=cseq[0],markerfacecolor=cseq[0],markersize=3)
+    ax1.plot(Hc[Midx==1],Hb[Midx==1],'.',label='$H_{2a}$',markeredgecolor=cseq[1],markerfacecolor=cseq[1],markersize=3)
+    ax1.plot(Hc[Midx==2],Hb[Midx==2],'.',label='$H_{2b}$',markeredgecolor=cseq[2],markerfacecolor=cseq[2],markersize=3)
+    ax1.plot(Hc[Midx==3],Hb[Midx==3],'.',label='$H_3$',markeredgecolor=cseq[3],markerfacecolor=cseq[3],markersize=3)
+    ax1.plot(Hc[Midx==4],Hb[Midx==4],'.',label='$H_4$',markeredgecolor=cseq[4],markerfacecolor=cseq[4],markersize=3)
+    ax1.set_xlim((0,Hc2))
+    ax1.set_ylim((Hb1,Hb2))
+    ax1.set_xlabel('$\mu_0H_c$ [T]',fontsize=12)
+    ax1.set_ylabel('$\mu_0H_u$ [T]',fontsize=12)
+    ax1.set_aspect('equal')
+    ax1.minorticks_on()
+    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
+    ax1.legend(fontsize=12,labelspacing=0,handletextpad=-0.6,loc=4,bbox_to_anchor=(1.035,-0.02),frameon=False,markerscale=2.5)
+
+    ########## PLOT HISTOGRAM #############
+
+    ax3 = fig.add_subplot(1,3,3)
+    N, bins, patches = ax3.hist(Midx,bins=(-0.5,0.5,1.5,2.5,3.5,4.5),rwidth=0.8,density=True)
+
+    for i in range(5):
+        patches[i].set_facecolor(cseq[i])
+
+    ax3.set_xticks(range(5))    
+    ax3.set_xticklabels(('$H_1$', '$H_{2a}$', '$H_{2b}$', '$H_3$', '$H_4$'),size=12)
+
+    ax3.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax3.set_xlabel('Selected model',fontsize=12)
+    ax3.set_ylabel('Proportion of cases [0-1]: $\psi$ = {:.3f}'.format(np.sum((Midx>0) & (Midx<4)) / Hc.size),fontsize=12)
+    ax3.set_xlim((-0.5,4.5))
+
+    ##################### OUTPUT PLOTS ######################
+    outputfile = X["sample"].value+'_model.eps'
+    plt.tight_layout()
+    plt.savefig(outputfile)
+    plt.show()
+
+    return X
+
+def plot_model_results_full(X):
+
+    #PLOT FULL MODEL
     ## UNPACK VARIABLE ##
     Xi = X['Xi']
     Yi = X['Yi']    
@@ -898,7 +1006,7 @@ def plot_model_results(X):
 
     ax3.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
     ax3.set_xlabel('Selected model',fontsize=12)
-    ax3.set_ylabel('Proportion of cases [0-1]',fontsize=12)
+    ax3.set_ylabel('Proportion of cases [0-1]: $\psi$ = {:.3f}'.format(np.sum((Midx>0) & (Midx<4)) / Hc.size),fontsize=12)
     ax3.set_xlim((-0.5,4.5))
 
     ##################### OUTPUT PLOTS ######################
@@ -1019,7 +1127,7 @@ def calculate_model(X):
     if ('client' in X) == False: #start DASK if required
         c = LocalCluster(n_workers=X['workers'].value)
         X['client'] = Client(c)
-
+    
     H = X['H']
     Hr = X['Hr']
     dH = X['dH']
@@ -1044,10 +1152,26 @@ def calculate_model(X):
     D_M = X['client'].scatter(M,broadcast=True)
     D_X = X['client'].scatter(X0,broadcast=True)
 
-    #Split arrays for DASK
+    #Down-sample and Split arrays for DASK
     Nsplit = 30
-    Hc0 = np.array_split(Hc,Nsplit)
-    Hb0 = np.array_split(Hb,Nsplit)
+
+    if X['Ndown'].value<Hc.size:
+        X['Hc1'], X['Hc2'], X['Hb1'], X['Hb2'] = measurement_limts(X)
+        gradient = (X['Hb1']-(X['Hb1']-X['Hc2']))/(X['Hc2']-X['Hc1'])
+        intercept = X['Hb1']-gradient*X['Hc2']
+   
+        #generate random points to down-sample
+        np.random.seed(999)
+        Hci = np.random.rand(X['Ndown'].value*3)*(X['Hc2']-X['Hc1'])+X['Hc1']
+        Hbi = np.random.rand(X['Ndown'].value*3)*(X['Hb2']-(X['Hb1']-X['Hc2']))+(X['Hb1']-X['Hc2'])
+        Hidx = np.argwhere(Hbi>=Hci*gradient+intercept)
+        X['Hci'] = Hci[Hidx[0:X['Ndown'].value]]
+        X['Hbi'] = Hbi[Hidx[0:X['Ndown'].value]]
+        Hc0 = np.array_split(X['Hci'],Nsplit)
+        Hb0 = np.array_split(X['Hbi'],Nsplit)
+    else:
+        Hc0 = np.array_split(Hc,Nsplit)
+        Hb0 = np.array_split(Hb,Nsplit)
 
     sc0 = X['SC'].value[0]
     sc1 = X['SC'].value[1]
@@ -1074,8 +1198,13 @@ def calculate_model(X):
     X['rho'] = rho
     X['Midx'] = Midx
 
-    X = triangulate_rho(X)
-    X = plot_model_results(X)
+    if X['Ndown'].value<Hc.size:
+        X['Xi']='NA'
+        X = plot_model_results_down(X)
+    else:
+        X = triangulate_rho(X)
+        X = plot_model_results_full(X)
+    
     
     return X
 ##### END SECTION: MODEL FUNCTIONS  #################################################
@@ -1090,6 +1219,11 @@ def FORC_plot(X):
     #Hb = data['Hb']
 
     Xi = X['Xi']
+    
+    if type(Xi) is str:
+        print('Error: The current model is based on downsampled data. Run a full model using "calculate_model"') #return error
+        return X
+    
     Yi = X['Yi']
     Zi = X['Zi']
     Hc1 = X['Hc1']
@@ -1677,6 +1811,7 @@ def vari_s(s0,s1,lamb,H,dH):
     LH = (1-lamb)*s1+lamb*np.abs(H)/dH
     
     return np.min((LH,RH))
+
 
 def vari_weights(sc0,sc1,lamb_sc,sb0,sb1,lamb_sb,Hc,Hb,dH,Hc0,Hb0):
        
