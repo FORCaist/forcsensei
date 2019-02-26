@@ -1,3 +1,4 @@
 # Example Package
 
-This is a simple example of forcsensei package.
+This is FORCsensei!
+Please visit https://forcaist.github.io for more information
