@@ -121,7 +121,7 @@ def plot_delta_hysteresis(X,ax):
     for i in range(5,int(np.max(Fk)),5):
     
         if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
-            ax.plot(H[Fk==i],M[Fk==i]/(pp["mass"]/1000.0),'-k')        
+            ax.plot(H[Fk==i],M[Fk==i]/(X["mass"].value/1000.0),'-k')        
         else: #SI not mass normalized (T and Am2)
             ax.plot(H[Fk==i],M[Fk==i],'-k') 
       
@@ -237,7 +237,7 @@ def plot_hysteresis(X,ax):
     for i in range(5,int(np.max(Fk)),5):
     
         if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
-            ax.plot(H[Fk==i],M[Fk==i]/(X["mass"]/1000.0),'-k')        
+            ax.plot(H[Fk==i],M[Fk==i]/(X["mass"].value/1000.0),'-k')        
         else: #SI not mass normalized (T and Am2)
             ax.plot(H[Fk==i],M[Fk==i],'-k')        
 
@@ -315,7 +315,7 @@ def slope_correction(X):
 
 def mass_normalize(X):
   
-    X["M"] = X["M"] / (X["mass"]/1000.) #convert to AM^2/kg
+    X["M"] = X["M"] / (X["mass"].value/1000.) #convert to AM^2/kg
     
     return X
 
