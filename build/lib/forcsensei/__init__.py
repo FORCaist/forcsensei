@@ -737,7 +737,7 @@ def MK92_weighted_regress(X,y,w,alpha,beta):
     lamb = np.real(lamb)
     Vh = VhT.T
     
-    for i in range(100):
+    for i in range(15):
 
         ab0=[alpha, beta]
     
@@ -833,7 +833,8 @@ def triangulate_rho(X):
     interpolator = tri.LinearTriInterpolator(triang, rho)
     Xi, Yi = np.meshgrid(xi, yi)
     Zi = interpolator(Xi, Yi)
-    
+    Xi[Xi==np.min(Xi[Xi>0])]=0
+
     X['Hc1'] = Hc1
     X['Xi']=Xi
     X['Yi']=Yi
@@ -1162,11 +1163,16 @@ def calculate_model(X):
    
         #generate random points to down-sample
         np.random.seed(999)
-        Hci = np.random.rand(X['Ndown'].value*3)*(X['Hc2']-X['Hc1'])+X['Hc1']
-        Hbi = np.random.rand(X['Ndown'].value*3)*(X['Hb2']-(X['Hb1']-X['Hc2']))+(X['Hb1']-X['Hc2'])
-        Hidx = np.argwhere(Hbi>=Hci*gradient+intercept)
-        X['Hci'] = Hci[Hidx[0:X['Ndown'].value]]
-        X['Hbi'] = Hbi[Hidx[0:X['Ndown'].value]]
+        #Hci = np.random.rand(X['Ndown'].value*3)*(X['Hc2']-X['Hc1'])+X['Hc1']
+        #Hbi = np.random.rand(X['Ndown'].value*3)*(X['Hb2']-(X['Hb1']-X['Hc2']))+(X['Hb1']-X['Hc2'])
+        #Hidx = np.argwhere(Hbi>=Hci*gradient+intercept)
+        #X['Hci'] = Hci[Hidx[0:X['Ndown'].value]]
+        #X['Hbi'] = Hbi[Hidx[0:X['Ndown'].value]]
+        
+        Ridx = np.random.choice(M.size, size=X['Ndown'].value, replace=False)
+        X['Hci']=Hc[Ridx]
+        X['Hbi']=Hb[Ridx]
+        
         Hc0 = np.array_split(X['Hci'],Nsplit)
         Hb0 = np.array_split(X['Hbi'],Nsplit)
     else:
