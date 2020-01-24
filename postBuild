@@ -8,4 +8,4 @@ mkdir -p ~/.jupyter/custom
 mv custom.js ~/.jupyter/custom/.
 
 # Notebooks w/ extensions that auto-run code must be "trusted" to work the first time
-jupyter trust forcsensei.ipynb
+jupyter trust FORCsensei.ipynb
