@@ -2,6 +2,12 @@ README.md
 setup.cfg
 setup.py
 forcsensei/__init__.py
+forcsensei/buttons.py
+forcsensei/load.py
+forcsensei/preprocess.py
+forcsensei/regress.py
+forcsensei/results.py
+forcsensei/utils.py
 forcsensei.egg-info/PKG-INFO
 forcsensei.egg-info/SOURCES.txt
 forcsensei.egg-info/dependency_links.txt

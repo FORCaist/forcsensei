@@ -1,0 +1,11 @@
+appmode
+ipyfilechooser
+numba
+IPython==7.2.0
+matplotlib==2.2.2
+numpy==1.15.0
+ipywidgets==7.5.1
+scipy==1.1.0
+bokeh==1.0.4
+git+https://github.com/FORCaist/turbosensei.git
+jupyter_contrib_nbextensions

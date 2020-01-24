@@ -1,0 +1,1 @@
+$('#appmode-leave').hide();
