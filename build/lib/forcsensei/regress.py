@@ -219,7 +219,7 @@ def compare(X):
     X['BF']=BF  
     X['Pr']=np.exp(BF-logsumexp(BF,axis=1)[:,np.newaxis])
     #Lpt provides labels to points for selected model order
-    Lpt = np.argmax(BF-[np.log(3),0,np.log(3),np.log(3)],axis=1)
+    Lpt = np.argmax(BF-[np.log(3),np.log(3),0,np.log(3)],axis=1)
     Lpt[np.max(X['BF'],axis=1)<1]=0
     
     X = plot_model_selection(X,Lpt[idx])
@@ -305,9 +305,9 @@ def execute(X):
     
     dH = X['dH']
     if (Mswitch<0.5):
-        M = X['Mnorm']
+        M = X['M']
     else:
-        M = X['DMnorm']    
+        M = X['DM']    
     
     Xlsq = X['Xlsq']
     
