@@ -3,7 +3,11 @@ from ipywidgets import VBox, HBox
 import codecs as cd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import forcsensei.utils as ut
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 #### PREPROCESSING OPTIONS ####
 def options(X):
@@ -113,7 +117,7 @@ def execute(X):
     ax2 = fig.add_subplot(122)
     X = plot_delta_hysteresis(X,ax2)
     
-    outputfile = X["sample"].value+'_HYS.eps'    
+    outputfile = X["sample"].value+'_HYS.pdf'    
     plt.savefig(outputfile, bbox_inches="tight")
     plt.show()
     
@@ -365,7 +369,7 @@ def plot_hysteresis(X,ax):
 
     ax.grid(False)
     ax.minorticks_on()
-    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=14,color='k')
     ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
 
     ax.spines['left'].set_position('zero')
@@ -393,15 +397,16 @@ def plot_hysteresis(X,ax):
     ax.set_xlim([-xmax,xmax])
 
     #label x-axis
-    ax.set_xlabel('$\mu_0 H [T]$',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel(r'B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
 
     #label y-axis according to unit system
     if X["mass"].value > 0.0:
-        ax.set_ylabel('$M [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+        ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
     else: 
-        ax.set_ylabel('$M [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+        ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top', position=(25,0.9), labelpad=20,fontsize=14,**hfont)
 
-    
+    ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
+
     X["xmax"]=xmax
     
     return X
@@ -425,7 +430,7 @@ def plot_delta_hysteresis(X,ax):
       
     ax.grid(False)
     ax.minorticks_on()
-    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=12,color='k')
+    ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,labelsize=14,color='k')
     ax.tick_params(axis='both',which='minor',direction='out',length=5,width=1,color='k')
 
     ax.spines['left'].set_position('zero')
@@ -457,14 +462,15 @@ def plot_delta_hysteresis(X,ax):
     ax.set_xlim([-xmax,xmax])
     
     #label x-axis according to unit system
-    ax.set_xlabel('$\mu_0 H [T]$',horizontalalignment='right', position=(1,25), fontsize=12)
+    ax.set_xlabel('B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
 
     #label y-axis according to unit system
     if X["mass"].value > 0.0:
-        ax.set_ylabel('$M - M_{hys} [Am^2/kg]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+        ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top',position=(25,0.9), labelpad=20, fontsize=14,**hfont)
     else: 
-        ax.set_ylabel('$M - M_{hys} [Am^2]$',verticalalignment='top',position=(25,0.9), fontsize=12,**hfont)
+        ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top',position=(25,0.9), labelpad=20, fontsize=14,**hfont)
 
+    ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
     
     return X
 

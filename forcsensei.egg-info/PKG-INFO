@@ -6,7 +6,9 @@ Home-page: https://github.com/FORCaist
 Author: FORCaist
 Author-email: FORCaist.user@gmail.com
 License: UNKNOWN
-Description: # forcsensei
+Description: # Welcome to FORCsensei
+        Full details of the FORCsensei package can be found on our project webpage:
+        https://forcaist.github.io/FORCaist.github.io/
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License

@@ -7,6 +7,9 @@ import matplotlib.tri as tri
 import matplotlib.colors as colors
 from matplotlib.colors import LinearSegmentedColormap
 import scipy.stats as sps
+import matplotlib.ticker as mtick
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
 
 
 #### FORC plotting ####
@@ -28,8 +31,36 @@ def forc(X):
     #DEFINE INTERACTIVE WIDGETS
     
     #should a colorbar be included
-    colorbar_widge = widgets.Checkbox(value=False, description = 'Include color scalebar',style=style) 
-    
+    colorbar_widge = widgets.Checkbox(value=False, description = 'Show final FORC plot',style=style) 
+
+    colormin_widge = widgets.FloatSlider(
+        value=0.0,
+        min=0.00,
+        max=0.999,
+        step=0.001,
+        description='Rescale colormap minimum',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=False,
+        readout_format='.2f',
+        style=style
+    )
+
+    colormax_widge = widgets.FloatSlider(
+        value=1.0,
+        min=0.001,
+        max=1,
+        step=0.001,
+        description='Rescale colormap maximum',
+        disabled=False,
+        continuous_update=False,
+        orientation='horizontal',
+        readout=False,
+        readout_format='.2f',
+        style=style
+    )
+
     #Frequency for contour lines to be included in plot
     contour_widge = widgets.Select(
         options=[['Select contour frequency',-1],
@@ -54,15 +85,15 @@ def forc(X):
     #How many contour levels should be included
     level_widge = widgets.Select(
         options=[['20',20],['30',30],['50',50],['75',75],['100',100],['200',200],['500',500]],
-        value=50,
+        value=100,
         rows=1,
         description='Number of color levels',style=style)
 
     #X-axis minimum value
-    xmin_widge = widgets.FloatText(value=0,description='Minimum $\mu_0H_c$ [T]',style=style,step=0.001)    
-    xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum $\mu_0H_c$ [T]',style=style,step=0.001)
-    ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum $\mu_0H_u$ [T]',style=style,step=0.001)
-    ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum $\mu_0H_u$ [T]',style=style,step=0.001)
+    xmin_widge = widgets.FloatText(value=0,description='Minimum B$_\mathrm{c}$ [T]',style=style,step=0.001)    
+    xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum B$_\mathrm{c}$ [T]',style=style,step=0.001)
+    ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum B$_\mathrm{u}$ [T]',style=style,step=0.001)
+    ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum B$_\mathrm{u}$ [T]',style=style,step=0.001)
 
     #launch the interactive FORC plot
     x = interactive(forcplot,
@@ -80,6 +111,8 @@ def forc(X):
              xmax=xmax_widge, #X-maximum
              ymin=ymin_widge, #Y-minimum
              ymax=ymax_widge, #Y-maximum
+             colormin = colormin_widge, #adjust colormap minimum
+             colormax = colormax_widge, #adjust colormap minimum
              download = download_widge #download plot
             )
     
@@ -94,7 +127,7 @@ def forc(X):
     
     #display(x) #display the interactive plot
 
-def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ymin,ymax,download):
+def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ymin,ymax,colormin,colormax,download):
     
 
     fig = plt.figure(figsize=(6,6))
@@ -107,11 +140,11 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
         SEi_new = SEi
         SEi_new[Zi_new==0.0]=0.0
         SEi_new[np.isnan(SEi_new)]=0.0
-        xlabel_text = '$\mu_0 H_c [T]$' #label Hc axis [SI units]
-        xlabel_csv = 'mu0 Hc [T]'
-        ylabel_text = '$\mu_0 H_u [T]$' #label Hu axis [SI units]
-        ylabel_csv = 'mu0 Hu [T]'
-        cbar_text = '$Am^2 T^{-2}$'
+        xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
+        xlabel_csv = 'Bc [T]'
+        ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
+        ylabel_csv = 'Bu [T]'
+        cbar_text = 'Am$^2$ T$^{-2}$'
         se_csv = 'rho [Am**2 / T**2]'
     else:
         Xi_new = Xi
@@ -120,11 +153,11 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
         SEi_new = SEi / (mass.value/1000.0)
         SEi_new[Zi_new==0.0]=0.0
         SEi_new[np.isnan(SEi_new)]=0.0
-        xlabel_text = '$\mu_0 H_c [T]$' #label Hc axis [SI units]
-        xlabel_csv = 'mu0 Hc [T]'
-        ylabel_text = '$\mu_0 H_u [T]$' #label Hu axis [SI units]
-        ylabel_csv = 'mu0 Hu [T]'
-        cbar_text = '$Am^2 T^{-2} kg^{-1}$'
+        xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
+        xlabel_csv = 'Bc [T]'
+        ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
+        ylabel_csv = 'Bu [T]'
+        cbar_text = 'Am$^2$ T$^{-2}$ kg$^{-1}$'
         se_csv = 'se [Am**2 / T**2 / kg]'
         
 
@@ -136,8 +169,15 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
     Zi_trunc = np.copy(Zi_new)
     Zi_trunc[np.isnan(Zi_trunc)] = 0.0
     Zi_trunc[Zi_trunc<vmin]=vmin
+    
+    vmini = vmin*(1-colormin)
+    vmaxi = vmax*colormax
+
+    idx = (Zi_trunc>=vmini) & (Zi_trunc<=vmaxi)
+    cmap,vmin,vmax = FORCinel_colormap(Zi_trunc[idx])
+
     CS = ax.contourf(Xi_new, Yi_new, Zi_trunc, level, cmap = cmap, vmin=vmin, vmax=vmax)
-    #CS = ax.contourf(Xi_new, Yi_new, Zi_new, level, cmap = cmap, norm=norm)       
+           
     if (contour>0) & (contour<level):
         CS2 = ax.contour(CS, levels=CS.levels[::contour], colors='k',linewidths=contourpts)
 
@@ -159,14 +199,16 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
     
     #Add colorbar
     if colorbar == True:    
-        cbar = fig.colorbar(CS,fraction=0.04, pad=0.08)
+        cbar = fig.colorbar(CS,fraction=0.04, pad=0.08,format='%.2e')
         cbar.ax.tick_params(labelsize=14)
         #cbar.ax.set_title(cbar_text,fontsize=14)
         cbar.set_label(cbar_text,fontsize=14)
+        #cbar.ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
+
     
     #Activate download to same folder as data file
     if download==True:
-        outputfile = fn.value+'_FORC.eps'
+        outputfile = fn.value+'_FORC.pdf'
         plt.savefig(outputfile, dpi=300, bbox_inches="tight")
         
         ar = np.column_stack((np.reshape(Xi_new,(-1,1)),np.reshape(Yi_new,(-1,1)),np.reshape(Zi_trunc,(-1,1)),np.reshape(SEi,(-1,1))))
@@ -274,7 +316,7 @@ def profile_options(X):
         min=Hb1,
         max=Hb2,
         step=0.001,
-        description='$\mu_0H_u$ [T]',
+        description='B$_u$ [T]',
         disabled=False,
         continuous_update=False,
         orientation='horizontal',
@@ -289,7 +331,7 @@ def profile_options(X):
         min=Hc1,
         max=Hc2,
         step=0.001,
-        description='$\mu_0H_c$ [T]',
+        description='B$_c$ [T]',
         disabled=False,
         continuous_update=False,
         orientation='horizontal',
@@ -305,7 +347,7 @@ def profile_options(X):
         min=Hc1,
         max=Hc2,
         step=0.001,
-        description='$\mu_0H_c$ [T]',
+        description='B$_c$ [T]',
         disabled=False,
         continuous_update=False,
         orientation='horizontal',
@@ -320,7 +362,7 @@ def profile_options(X):
         min=Hb1,
         max=Hb2,
         step=0.001,
-        description='$\mu_0H_u$ [T]',
+        description='B$_u$ [T]',
         disabled=False,
         continuous_update=False,
         orientation='horizontal',
@@ -374,19 +416,21 @@ def x_profile(X,Hc,Hb):
     if X['mass'].value>0.0:
         ax1.plot(Hc0,rho_int/(X['mass'].value/1000.0),color='k')
         ax1.fill_between(Hc0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
-        ax1.set_ylabel('$Am^2$ $T^{-2} kg^{-1}$',fontsize=12)
+        ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
     else:
         ax1.plot(Hc0,rho_int,color='k')
         ax1.fill_between(Hc0, (rho_int-CI_int), (rho_int+CI_int),color='lightgrey')
-        ax1.set_ylabel('$Am^2$ $T^{-2}$',fontsize=12)
+        ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
 
-    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='14')
     ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
-
-    ax1.set_xlabel('$\mu_0H_c$ [T]',fontsize=12)
-    ax1.minorticks_on()
     
-    outputfile = X['sample'].value+'_Hc_PROFILE.eps'
+    ax1.set_xlabel('B$_\mathrm{c}$ [T]',fontsize=14)
+    ax1.minorticks_on()
+    ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
+
+
+    outputfile = X['sample'].value+'_Hc_PROFILE.pdf'
     plt.savefig(outputfile, dpi=300, bbox_inches="tight")
     plt.show
     
@@ -411,19 +455,21 @@ def y_profile(X,Hc,Hb):
     if X['mass'].value>0.0:
         ax1.plot(Hb0,rho_int/(X['mass'].value/1000.0),color='k')
         ax1.fill_between(Hb0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
-        ax1.set_ylabel('$Am^2$ $T^{-2} kg^{-1}$',fontsize=12)
+        ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
     else:
         ax1.plot(Hb0,rho_int,color='k')
         ax1.fill_between(Hb0, (rho_int-CI_int), (rho_int+CI_int),color='lightgrey')
-        ax1.set_ylabel('$Am^2$ $T^{-2}$',fontsize=12)
+        ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
     
-    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='12')
+    ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='14')
     ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
 
-    ax1.set_xlabel('$\mu_0H_b$ [T]',fontsize=12)
+    ax1.set_xlabel('B$_\mathrm{u}$ [T]',fontsize=14)
     ax1.minorticks_on()
-    
-    outputfile = X['sample'].value+'_Hu_PROFILE.eps'
+    ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
+
+
+    outputfile = X['sample'].value+'_Hu_PROFILE.pdf'
     plt.savefig(outputfile, dpi=300, bbox_inches="tight")
     plt.show
     
