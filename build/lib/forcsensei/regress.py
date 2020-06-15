@@ -41,7 +41,7 @@ def options(X):
     
     #SC widgets
     Sc_widge = widgets.IntRangeSlider(
-        value=[2,8],
+        value=[2,10],
         min=2,
         max=10,
         step=1,
@@ -54,7 +54,7 @@ def options(X):
     )
 
     Sb_widge = widgets.IntRangeSlider(
-        value=[2,8],
+        value=[2,10],
         min=2,
         max=10,
         step=1,
@@ -67,7 +67,7 @@ def options(X):
     )
     
     lambda_widge = widgets.FloatRangeSlider(
-        value=[0.0,0.08],
+        value=[0.0,0.2],
         min=0,
         max=0.2,
         step=0.04,
@@ -435,6 +435,17 @@ def plot_model_selection(X,Lpt):
     T_out = widgets.HTML(value='<h4>Distribution of model performance</h4>')
     
     display(VBox([R_out,HL,H_out,sc0_out,sc1_out,sb0_out,sb1_out,lam_out,HL,T_out]))
+
+    #output optimal model parameters to file
+    outputfile = X['sample'].value+'_VARIFORC.txt'
+    Voutput  = np.array(['Optimal VARIFORC Smoothing Factors',
+                    'Optimal Sc0 = {:}'.format(int(X['Sp'][i0,0])),
+                    'Optimal Sc1 = {:}'.format(int(X['Sp'][i0,1])),
+                    'Optimal Su0 = {:}'.format(int(X['Sp'][i0,2])),
+                    'Optimal Su1 = {:}'.format(int(X['Sp'][i0,3])),
+                    'Optimal lambda = {:.2f}'.format(X['Sp'][i0,4])])
+
+    np.savetxt(outputfile, Voutput, delimiter=" ", fmt="%s") 
 
     a = L[:,0]+L[:,1]
     b = L[:,2]
