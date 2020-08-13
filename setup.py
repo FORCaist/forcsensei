@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="forcsensei",
-    version="1.1.0",
+    version="1.1.1",
     author="FORCaist",
     author_email="FORCaist.user@gmail.com",
     description="The FORCsensei package",
