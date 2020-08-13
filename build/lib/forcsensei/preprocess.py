@@ -106,7 +106,7 @@ def execute(X):
         X = remove_lpa(X)
     
     #extend FORCs
-    X = FORC_extend(X)
+    #X = FORC_extend(X)
 
     #perform lower branch subtraction
     X = lowerbranch_subtract(X)
@@ -174,7 +174,7 @@ def remove_fpa(X):
     Ft = X["Ft"]
     
     #remove first point artifact
-    idx=((Fj==1.0))
+    idx=((Fj<=1.0))
     H=H[~idx]
     Hr=Hr[~idx]
     M=M[~idx]
