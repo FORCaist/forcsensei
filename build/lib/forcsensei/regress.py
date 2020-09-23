@@ -9,6 +9,7 @@ import codecs as cd
 import forcsensei.utils as ut
 import numba
 import matplotlib
+from scipy.stats import t
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
@@ -80,18 +81,24 @@ def options(X):
         style = style
     )
 
-    constraint_widge = widgets.Checkbox(value=True, description='Assume $Sc_0$ = $Su_0$',style=style)
+    constraint_widge = widgets.Checkbox(value=False, description='Assume $Sc_0$ = $Su_0$',style=style)
     constraint_html = widgets.HTML(value='Check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#AssumeS" target="_blank">FORCsensei FAQ</a> for more information about the &nbsp;Sc<sub>0</sub> = Sb<sub>0</sub> option')
 
+    pike_widge = widgets.Checkbox(value=False, description='Assume $Sc_0$ = $Su_0$ = $Sc_1$ = $Su_1$ and $\lambda$ = 0',style=style)
 
     #find number of points in window of interest
     X['Hc'] = 0.5*(X['H']-X['Hr'])
     X['Hb'] = 0.5*(X['H']+X['Hr'])
-    Npts = len(np.argwhere(in_window(X,X['Hc'],X['Hb'])==True))
+    Hidx = np.argwhere(in_window(X,X['Hc'],X['Hb'])==True)
+    H0 =  X['Hc'][Hidx] + X['Hb'][Hidx]
+    Hr0 = X['Hb'][Hidx] - X['Hc'][Hidx]
     
     down_title = widgets.HTML(value='<h3>Specify downsampling:</h3>')
+    
+    Npts = int(np.sum((np.abs(H0)<X['Hopen']) & (np.abs(Hr0)<X['Hopen'])))
+
     down_widge = widgets.IntSlider(
-        value=np.minimum(X['M'].size,2000),
+        value=np.minimum(Npts,2000),
         min=100,
         max=Npts,
         step=1,
@@ -105,7 +112,7 @@ def options(X):
     )
     
     #display number of models to compare
-    model_widge = widgets.interactive_output(variforc_array_size, {'SC': Sc_widge, 'SB': Sb_widge, 'L': lambda_widge, 'CN': constraint_widge})
+    model_widge = widgets.interactive_output(variforc_array_size, {'SC': Sc_widge, 'SB': Sb_widge, 'L': lambda_widge, 'CN': constraint_widge, 'PK': pike_widge})
 
     #display FAQ information about progress bar
     progress_html = widgets.HTML(value='Model comparison can take some time, check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#progress" target="_blank">FORCsensei FAQ</a> for information about monitoring progress of the calculation')
@@ -113,7 +120,7 @@ def options(X):
 
     #combined widget
     DS = VBox([down_title,down_widge])
-    SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambda_widge,HBox([constraint_widge,constraint_html]),model_widge,progress_html])
+    SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambda_widge,HBox([constraint_widge,constraint_html]),pike_widge,model_widge,progress_html])
     
     ### Setup Multiprocessing tab ####################
     X['ncore']=4
@@ -152,6 +159,7 @@ def options(X):
     
     ### SETUP OUTPUT ####
     X['constraint']=constraint_widge
+    X['pike']=pike_widge
     X['Mtype']=M_widge
     X['SC']=Sc_widge
     X['SB']=Sb_widge
@@ -203,10 +211,19 @@ def compare(X):
     D['Hb0'] = X['Hb0']
     X['Ds'] = X['client'].scatter(D,broadcast=True)
 
-    Ntot = np.size(X['Hc0'])
-    np.random.seed(999)
-    Didx = np.sort(np.random.choice(Ntot, X['Ndown'].value, replace=False)) #downsampled indicies
+    H0 = X['Hc0'] + X['Hb0']
+    Hr0 = X['Hb0'] - X['Hc0']
 
+    #Ntot = np.size(X['Hc0'])
+    Ntot = int(np.sum((np.abs(H0)<X['Hopen']) & (np.abs(Hr0)<X['Hopen'])))
+    np.random.seed(999)
+    Ridx = np.sort(np.random.choice(Ntot, X['Ndown'].value, replace=False)) #downsampled indicies
+
+    #find indicies of data in the scoring zone
+    Sidx = np.argwhere((np.abs(H0)<X['Hopen']) & (np.abs(Hr0)<X['Hopen']))[:,0]
+    Didx = np.squeeze(Sidx[Ridx])
+    X['Sidx'] = Sidx
+    X['Didx'] = Didx
     X = variforc_array(X) #get smoothing parameter
 
     jobs = []
@@ -233,7 +250,8 @@ def compare(X):
     X['BF']=BF  
     X['Pr']=np.exp(BF-logsumexp(BF,axis=1)[:,np.newaxis])
     #Lpt provides labels to points for selected model order
-    Lpt = np.argmax(BF-[np.log(3),np.log(3),0,np.log(3)],axis=1)
+    Lpt = np.argmax(BF-[np.log(10),np.log(10),0,np.log(10)],axis=1)
+    #Lpt = np.argmax(BF,axis=1)
     Lpt[np.max(X['BF'],axis=1)<1]=0
     
     X = plot_model_selection(X,Lpt[idx])
@@ -268,21 +286,15 @@ def process_split(X,S,Didx,Mswitch):
     
     for i in range(Npts):
         BF = regress_split(Xlsq,M,Hc,Hb,dH,Hc0,Hb0,sc0[i],sc1[i],lamb[i],sb0[i],sb1[i],lamb[i])
-        Li = np.argmax(BF,axis=1) 
-        #L[i,0] = np.sum(BF==0)
-        #L[i,1] = np.sum(Li==1)
-        #L[i,2] = np.sum(Li==2) 
-        #L[i,3] = np.sum(Li==3)
-        L[i,0] = np.sum((Li==0) & (BF[:,0]-np.log(3)>BF[:,2]))
-        L[i,1] = np.sum((Li==1) & (BF[:,1]-np.log(3)>BF[:,2]))
-        L[i,3] = np.sum((Li==3) & (BF[:,3]-np.log(3)>BF[:,2]))
-        L[i,2] = len(BF) - L[i,0] - L[i,1] - L[i,3]
-        #L[i,1] = np.sum(Li==1)
-        #L[i,2] = np.sum(Li==2) 
-        #L[i,3] = np.sum(Li==3)
+        BF[np.isinf(BF)]=1E200
+        L0 = np.argmax(BF-[np.log(10),np.log(10),0,np.log(10)],axis=1)
+        #L0 = np.argmax(BF,axis=1) 
+        L0[np.max(BF,axis=1)<1]=0
 
-        #Li = np.argmax(BF,axis=1)
-        #L[i,4] = np.sum(Li==2) 
+        L[i,0] = np.sum(L0==0)
+        L[i,1] = np.sum(L0==1)
+        L[i,3] = np.sum(L0==3)
+        L[i,2] = np.sum(L0==2)
 
     return L
 
@@ -327,6 +339,7 @@ def execute(X):
     
     rho = np.zeros(Hc.size) 
     se = np.zeros(Hc.size)
+    pval = np.zeros(Hc.size)
 
     for i in range(Hc.size):
         if Pidx[i]>1:
@@ -349,6 +362,7 @@ def execute(X):
             
             rho[i] = rho2
             se[i] = se2
+            pval[i] = 2*(1-t.cdf(np.abs(rho[i]/se[i]), len(Bw)))
         
         '''
         #perform 3rd-order least squares to estimate rho and variance-covariance matrix
@@ -373,6 +387,8 @@ def execute(X):
 
     X['rho'] = rho
     X['se'] = se
+    X['pval'] = pval
+
 
     X = triangulate_rho(X) #triangulate rho for plotting
 
@@ -382,6 +398,7 @@ def triangulate_rho(X):
 
     se = X['se']
     rho = X['rho']
+    pval = X['pval']
     Hc = X['Hc']
     Hb = X['Hb']
     dH = X['dH']
@@ -408,13 +425,18 @@ def triangulate_rho(X):
     interpolator1 = tri.LinearTriInterpolator(triang, se)
     SEi = interpolator1(Xi, Yi)
 
+    interpolator2 = tri.LinearTriInterpolator(triang, pval*len(pval))
+    Pi = interpolator2(Xi, Yi)
+
     X['Hc1'] = Hc1
     X['Xi']=Xi
     X['Yi']=Yi
     X['Zi']=Zi
     X['SEi']=SEi
+    X['Pi']=Pi
     X['SEint']=interpolator1
     X['Zint']=interpolator
+    X['Pint']=interpolator2
     
     return X
 
@@ -511,6 +533,8 @@ def plot_model_selection(X,Lpt):
     plt.savefig(outputfile, dpi=300, bbox_inches="tight")
     plt.show()
     
+    #print(np.max(L2))
+
     F_out = widgets.HTML(value='<h4>Optimal VARIFORC model</h4>')
     display(VBox([HL,F_out]))
 
@@ -520,10 +544,22 @@ def plot_model_selection(X,Lpt):
     cseq.append((86/255,180/255,233/255,1))
     cseq.append((213/255,94/255,0/255,1))
     
-    ax.plot(X['Hc0'][Lpt<=1],X['Hb0'][Lpt<=1],'.',label='Overfit',markeredgecolor=cseq[0],markerfacecolor=cseq[0],markersize=3)
-    ax.plot(X['Hc0'][Lpt==2],X['Hb0'][Lpt==2],'.',label='Optimal',markeredgecolor=cseq[1],markerfacecolor=cseq[1],markersize=3)
-    ax.plot(X['Hc0'][Lpt==3],X['Hb0'][Lpt==3],'.',label='Underfit',markeredgecolor=cseq[2],markerfacecolor=cseq[2],markersize=3)
+    ax.plot(X['Hc0'][Lpt<=1],X['Hb0'][Lpt<=1],'.',label='Overfit',markeredgecolor=cseq[0],markerfacecolor=cseq[0],markersize=1)
+    ax.plot(X['Hc0'][Lpt==2],X['Hb0'][Lpt==2],'.',label='Optimal',markeredgecolor=cseq[1],markerfacecolor=cseq[1],markersize=1)
+    ax.plot(X['Hc0'][Lpt==3],X['Hb0'][Lpt==3],'.',label='Underfit',markeredgecolor=cseq[2],markerfacecolor=cseq[2],markersize=1)
     
+    Sx = np.array([0,X['Hopen'],0])
+    Sy = np.array([X['Hopen'],0,-X['Hopen']])
+    ax.plot(Sx,Sy,'w',linewidth=2)
+
+    H0 = X['Hc0']+X['Hb0']
+    Hr0 = X['Hb0']-X['Hc0']
+    
+    idx = (np.abs(H0)<X['Hopen']) & (np.abs(Hr0)<X['Hopen'])
+    #print(np.size(Lpt[idx]))
+    X['temp'] = (H0,Hr0,Lpt,idx)
+    psi_final = np.sum(Lpt[idx]==2)/np.size(Lpt[idx])
+
     ax.set_aspect(1.0)       
     Hc1 = X['Hc1']
     Hc2 = X['Hc2']
@@ -533,14 +569,19 @@ def plot_model_selection(X,Lpt):
 
     ax.set_xlim((np.maximum(0,Hc1),Hc2))
     ax.set_ylim((Hb1,Hb2))
-    ax.set_xlabel(r'B$_\mathrm{c}$ [T]',fontsize=14)
-    ax.set_ylabel(r'B$_\mathrm{u}$ [T]',fontsize=14)
+    if X['unit'] == 'SI':
+        ax.set_xlabel(r'B$_\mathrm{c}$ [T]',fontsize=14)
+        ax.set_ylabel(r'B$_\mathrm{u}$ [T]',fontsize=14)
+    elif X['unit'] == 'cgs':
+        ax.set_xlabel(r'H$_\mathrm{c}$ [Oe]',fontsize=14)
+        ax.set_ylabel(r'H$_\mathrm{u}$ [Oe]',fontsize=14)
+
     ax.set_aspect('equal')
     ax.minorticks_on()
     ax.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='14')
     ax.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')   
-    ax.legend(fontsize=12,labelspacing=0,handletextpad=-0.6,loc=4,bbox_to_anchor=(1.05,-0.02),frameon=False,markerscale=2.5);
-    ax.set_title('$\psi$ = {:.2f}'.format(np.sum(Lpt==2)/np.size(Lpt)),fontsize=14);
+    ax.legend(fontsize=12,labelspacing=0,handletextpad=-0.6,loc=4,bbox_to_anchor=(1.05,-0.02),frameon=False,markerscale=7.5);
+    ax.set_title('$\psi$ = {:.2f}'.format(psi_final),fontsize=14);
     outputfile = X['sample'].value+'_ORDER.pdf'
     plt.savefig(outputfile, dpi=150, bbox_inches="tight")
     plt.show()
@@ -615,7 +656,7 @@ def Bayes_factor(N,R2,order=1,B=0):
     return BF, B
 
     #### HELPER FUNCTIONS ####
-def variforc_array_size(SC,SB,L,CN): #array of variforc smoothing parameter
+def variforc_array_size(SC,SB,L,CN,PK): #array of variforc smoothing parameter
 
     Sc_min = SC[0]
     Sc_max = SC[1]
@@ -649,6 +690,9 @@ def variforc_array_size(SC,SB,L,CN): #array of variforc smoothing parameter
     else:
         idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
 
+    if PK==True:
+        idx = ((Sc1==Sc0) & (Sb1==Sb0) & (Sc0==Sb0)  & (Sb1==Sb1)  & (L<0.0001))
+
     results = widgets.HTML(value='<h5>Number of VARIFORC models to compare = {:}</h5>'.format(int(np.sum(idx))))
     display(results)
 
@@ -661,6 +705,7 @@ def variforc_array(X): #array of variforc smoothing parameter
     Lambda_min = X['lambda'].value[0]
     Lambda_max = X['lambda'].value[1]
     CN = X['constraint'].value
+    PK = X['pike'].value
 
     num = 6
 
@@ -688,6 +733,9 @@ def variforc_array(X): #array of variforc smoothing parameter
         idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0))
     else:
         idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+
+    if PK==True:
+        idx = ((Sc1==Sc0) & (Sb1==Sb0) & (Sc0==Sb0)  & (Sb1==Sb1)  & (L<0.0001))
     
     Sc0 = Sc0[idx]
     Sc1 = Sc1[idx]

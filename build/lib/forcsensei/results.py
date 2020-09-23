@@ -20,6 +20,7 @@ def forc(X):
     Yi = X['Yi']
     Zi = X['Zi']
     SEi = X['SEi']
+    Pi = X['Pi']
     Hc1 = X['Hc1']
     Hc2 = X['Hc2']
     Hb1 = X['Hb1']
@@ -32,6 +33,7 @@ def forc(X):
     
     #should a colorbar be included
     colorbar_widge = widgets.Checkbox(value=False, description = 'Show final FORC plot',style=style) 
+    pval_widge = widgets.Checkbox(value=False, description = 'Show 0.05 significance contour',style=style) 
 
     colormin_widge = widgets.FloatSlider(
         value=0.0,
@@ -89,11 +91,17 @@ def forc(X):
         rows=1,
         description='Number of color levels',style=style)
 
-    #X-axis minimum value
-    xmin_widge = widgets.FloatText(value=0,description='Minimum B$_\mathrm{c}$ [T]',style=style,step=0.001)    
-    xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum B$_\mathrm{c}$ [T]',style=style,step=0.001)
-    ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum B$_\mathrm{u}$ [T]',style=style,step=0.001)
-    ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum B$_\mathrm{u}$ [T]',style=style,step=0.001)
+    #plot limit widgets
+    if X['unit']=='SI': 
+        xmin_widge = widgets.FloatText(value=0,description='Minimum B$_\mathrm{c}$ [Oe]',style=style,step=10)    
+        xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum B$_\mathrm{c}$ [Oe]',style=style,step=10)
+        ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum B$_\mathrm{u}$ [Oe]',style=style,step=10)
+        ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum B$_\mathrm{u}$ [Oe]',style=style,step=10)
+    elif X['unit']=='cgs':
+        xmin_widge = widgets.FloatText(value=0,description='Minimum H$_\mathrm{c}$ [Oe]',style=style,step=10)    
+        xmax_widge = widgets.FloatText(value=np.round(Hc2*1000)/1000,description='Maximum H$_\mathrm{c}$ [Oe]',style=style,step=10)
+        ymin_widge = widgets.FloatText(value=np.round((Hb1-Hc2)*1000)/1000,description='Minimum H$_\mathrm{u}$ [Oe]',style=style,step=10)
+        ymax_widge = widgets.FloatText(value=np.round(Hb2*1000)/1000,description='Maximum H$_\mathrm{u}$ [Oe]',style=style,step=10) 
 
     #launch the interactive FORC plot
     x = interactive(forcplot,
@@ -101,8 +109,10 @@ def forc(X):
              Yi=fixed(Yi), #Y point grid
              Zi=fixed(Zi), #interpolated Z values
              SEi = fixed(SEi), #interpolated standard errors
+             Pi = fixed(Pi), #P values
              fn=fixed(X['sample']), #File information
              mass=fixed(X['mass']), #Preprocessing information
+             unit=fixed(X['unit']),
              colorbar=colorbar_widge, #Include colorbar             
              level=level_widge, #Number of levels to plot 
              contour=contour_widge, #Contour levels to plot
@@ -127,7 +137,7 @@ def forc(X):
     
     #display(x) #display the interactive plot
 
-def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ymin,ymax,colormin,colormax,download):
+def forcplot(Xi,Yi,Zi,SEi,Pi,fn,mass,unit,colorbar,level,contour,contourpts,xmin,xmax,ymin,ymax,colormin,colormax,download):
     
 
     fig = plt.figure(figsize=(6,6))
@@ -138,14 +148,23 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
         Yi_new = Yi
         Zi_new = Zi
         SEi_new = SEi
+        Pi_new = Pi
         SEi_new[Zi_new==0.0]=0.0
         SEi_new[np.isnan(SEi_new)]=0.0
-        xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
-        xlabel_csv = 'Bc [T]'
-        ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
-        ylabel_csv = 'Bu [T]'
-        cbar_text = 'Am$^2$ T$^{-2}$'
-        se_csv = 'rho [Am**2 / T**2]'
+        if unit=='SI':
+            xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
+            xlabel_csv = 'Bc [T]'
+            ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
+            ylabel_csv = 'Bu [T]'
+            cbar_text = 'Am$^2$ T$^{-2}$'
+            se_csv = 'rho [Am**2 / T**2]'
+        elif unit=='cgs':
+            xlabel_text = 'H$_\mathrm{c}$ [Oe]' #label Hc axis [SI units]
+            xlabel_csv = 'Hc [Oe]'
+            ylabel_text = 'H$_\mathrm{u}$ [Oe]' #label Hu axis [SI units]
+            ylabel_csv = 'Hu [Oe]'
+            cbar_text = 'emu$ Oe$^{-2}$'
+            se_csv = 'rho [emu / Oe**2]'            
     else:
         Xi_new = Xi
         Yi_new = Yi
@@ -153,13 +172,28 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
         SEi_new = SEi / (mass.value/1000.0)
         SEi_new[Zi_new==0.0]=0.0
         SEi_new[np.isnan(SEi_new)]=0.0
-        xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
-        xlabel_csv = 'Bc [T]'
-        ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
-        ylabel_csv = 'Bu [T]'
-        cbar_text = 'Am$^2$ T$^{-2}$ kg$^{-1}$'
-        se_csv = 'se [Am**2 / T**2 / kg]'
+        Pi_new = Pi
+        if unit=='SI':
+            Zi_new = Zi / (mass.value/1000.0)
+            SEi_new = SEi / (mass.value/1000.0)        
+            xlabel_text = 'B$_\mathrm{c}$ [T]' #label Hc axis [SI units]
+            xlabel_csv = 'Bc [T]'
+            ylabel_text = 'B$_\mathrm{u}$ [T]' #label Hu axis [SI units]
+            ylabel_csv = 'Bu [T]'
+            cbar_text = 'Am$^2$ T$^{-2}$ kg$^{-1}$'
+            se_csv = 'se [Am**2 / T**2 / kg]'
+        elif unit=='cgs':
+            Zi_new = Zi / (mass.value)
+            SEi_new = SEi / (mass.value)        
+            xlabel_text = 'H$_\mathrm{c}$ [Oe]' #label Hc axis [SI units]
+            xlabel_csv = 'Hc [Oe]'
+            ylabel_text = 'H$_\mathrm{u}$ [Oe]' #label Hu axis [SI units]
+            ylabel_csv = 'Hu [Oe]'
+            cbar_text = 'emu Oe$^{-2}$ g$^{-1}$'
+            se_csv = 'se [emu/ Oe**2 / g]'        
         
+        SEi_new[Zi_new==0.0]=0.0
+        SEi_new[np.isnan(SEi_new)]=0.0        
 
     #define colormaps
     idx=(Xi_new>=xmin) & (Xi_new<=xmax) & (Yi_new>=ymin) & (Yi_new<=ymax) #find points currently in view
@@ -180,6 +214,9 @@ def forcplot(Xi,Yi,Zi,SEi,fn,mass,colorbar,level,contour,contourpts,xmin,xmax,ym
            
     if (contour>0) & (contour<level):
         CS2 = ax.contour(CS, levels=CS.levels[::contour], colors='k',linewidths=contourpts)
+
+    #if pval==True:
+    #    CS3 = ax.contour(Xi_new, Yi_new, Pi_new, levels=[0.05], colors=['r'])
 
     ax.set_xlabel(xlabel_text,fontsize=14) #label Hc axis [SI units]
     ax.set_ylabel(ylabel_text,fontsize=14) #label Hu axis [SI units]  
@@ -311,66 +348,133 @@ def profile_options(X):
                                        style=style)
     
     H_title = widgets.HTML(value='<h4>Horizontal profile specification:</h4>')
-    x_Hb_widge = widgets.FloatSlider(
-        value=0.0,
-        min=Hb1,
-        max=Hb2,
-        step=0.001,
-        description='B$_u$ [T]',
-        disabled=False,
-        continuous_update=False,
-        orientation='horizontal',
-        readout=True,
-        readout_format='.3f',
-        layout={'width': '350px'},
-        style = style
-    )
-    
-    x_Hc_widge = widgets.FloatRangeSlider(
-        value=[Hc1,Hc2],
-        min=Hc1,
-        max=Hc2,
-        step=0.001,
-        description='B$_c$ [T]',
-        disabled=False,
-        continuous_update=False,
-        orientation='horizontal',
-        readout=True,
-        readout_format='.3f',
-        layout={'width': '350px'},
-        style = style
-    )
+
+    if X['unit'] == 'SI':
+        x_Hb_widge = widgets.FloatSlider(
+            value=0.0,
+            min=Hb1,
+            max=Hb2,
+            step=0.001,
+            description='B$_u$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+    elif X['unit'] == 'cgs':
+        x_Hb_widge = widgets.FloatSlider(
+            value=0.0,
+            min=Hb1,
+            max=Hb2,
+            step=10,
+            description='H$_u$ [Oe]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+        
+    if X['unit'] == 'SI':
+        x_Hc_widge = widgets.FloatRangeSlider(
+            value=[Hc1,Hc2],
+            min=Hc1,
+            max=Hc2,
+            step=0.001,
+            description='B$_c$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+    elif X['unit'] == 'cgs':
+        x_Hc_widge = widgets.FloatRangeSlider(
+            value=[Hc1,Hc2],
+            min=Hc1,
+            max=Hc2,
+            step=10,
+            description='H$_c$ [Oe]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
     
     V_title = widgets.HTML(value='<h4>Vertical profile specification:</h4>')
-    y_Hc_widge = widgets.FloatSlider(
-        value=(Hc1+Hc2)/2.0,
-        min=Hc1,
-        max=Hc2,
-        step=0.001,
-        description='B$_c$ [T]',
-        disabled=False,
-        continuous_update=False,
-        orientation='horizontal',
-        readout=True,
-        readout_format='.3f',
-        layout={'width': '350px'},
-        style = style
-    )
     
-    y_Hb_widge = widgets.FloatRangeSlider(
-        value=[Hb1,Hb2],
-        min=Hb1,
-        max=Hb2,
-        step=0.001,
-        description='B$_u$ [T]',
-        disabled=False,
-        continuous_update=False,
-        orientation='horizontal',
-        readout=True,
-        readout_format='.3f',
-        layout={'width': '350px'},
-        style = style
-    )
+    if X['unit'] == 'SI':
+        y_Hc_widge = widgets.FloatSlider(
+            value=(Hc1+Hc2)/2.0,
+            min=Hc1,
+            max=Hc2,
+            step=0.001,
+            description='B$_c$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+    elif X['unit'] == 'cgs':
+        y_Hc_widge = widgets.FloatSlider(
+            value=(Hc1+Hc2)/2.0,
+            min=Hc1,
+            max=Hc2,
+            step=10,
+            description='H$_c$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+
+    if X['unit'] == 'SI':
+        y_Hb_widge = widgets.FloatRangeSlider(
+            value=[Hb1,Hb2],
+            min=Hb1,
+            max=Hb2,
+            step=0.001,
+            description='B$_u$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
+
+    elif X['unit'] == 'cgs':
+        y_Hb_widge = widgets.FloatRangeSlider(
+            value=[Hb1,Hb2],
+            min=Hb1,
+            max=Hb2,
+            step=10,
+            description='H$_u$ [T]',
+            disabled=False,
+            continuous_update=False,
+            orientation='horizontal',
+            readout=True,
+            readout_format='.3f',
+            layout={'width': '350px'},
+            style = style
+        )
     
     profile_widge = VBox([P_title,P_widge,HL,H_title,x_Hb_widge,x_Hc_widge, \
                          HL,V_title,y_Hc_widge,y_Hb_widge])
@@ -414,18 +518,31 @@ def x_profile(X,Hc,Hb):
     ax1 = fig.add_subplot(1,1,1)
     
     if X['mass'].value>0.0:
-        ax1.plot(Hc0,rho_int/(X['mass'].value/1000.0),color='k')
-        ax1.fill_between(Hc0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
-        ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
+        if X['unit'] == 'SI':
+            ax1.plot(Hc0,rho_int/(X['mass'].value/1000.0),color='k')
+            ax1.fill_between(Hc0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
+            ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
+        elif X['unit'] == 'cgs':
+            ax1.plot(Hc0,rho_int/(X['mass'].value),color='k')
+            ax1.fill_between(Hc0, (rho_int-CI_int)/(X['mass'].value), (rho_int+CI_int)/(X['mass'].value),color='lightgrey')
+            ax1.set_ylabel('emu Oe$^{-2}$ g$^{-1}$',fontsize=14)
     else:
         ax1.plot(Hc0,rho_int,color='k')
         ax1.fill_between(Hc0, (rho_int-CI_int), (rho_int+CI_int),color='lightgrey')
-        ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
+        if X['unit'] == 'SI':
+            ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
+        elif X['unit'] == 'cgs':
+            ax1.set_ylabel('emu Oe$^{-2}$',fontsize=14)
+
 
     ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='14')
     ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
     
-    ax1.set_xlabel('B$_\mathrm{c}$ [T]',fontsize=14)
+    if X['unit'] == 'SI':
+        ax1.set_xlabel('B$_\mathrm{c}$ [T]',fontsize=14)
+    elif X['unit'] == 'cgs':
+        ax1.set_xlabel('H$_\mathrm{c}$ [Oe]',fontsize=14)        
+    
     ax1.minorticks_on()
     ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
 
@@ -453,18 +570,30 @@ def y_profile(X,Hc,Hb):
     ax1 = fig.add_subplot(1,1,1)
 
     if X['mass'].value>0.0:
-        ax1.plot(Hb0,rho_int/(X['mass'].value/1000.0),color='k')
-        ax1.fill_between(Hb0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
-        ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
+        if X['unit'] == 'SI':
+            ax1.plot(Hb0,rho_int/(X['mass'].value/1000.0),color='k')
+            ax1.fill_between(Hb0, (rho_int-CI_int)/(X['mass'].value/1000.0), (rho_int+CI_int)/(X['mass'].value/1000.0),color='lightgrey')
+            ax1.set_ylabel('Am$^2$ T$^{-2}$ kg$^{-1}$',fontsize=14)
+        elif X['unit'] == 'cgs':
+            ax1.plot(Hb0,rho_int/(X['mass'].value),color='k')
+            ax1.fill_between(Hb0, (rho_int-CI_int)/(X['mass'].value), (rho_int+CI_int)/(X['mass'].value),color='lightgrey')
+            ax1.set_ylabel('emu Oe$^{-2}$ g$^{-1}$',fontsize=14)
     else:
         ax1.plot(Hb0,rho_int,color='k')
         ax1.fill_between(Hb0, (rho_int-CI_int), (rho_int+CI_int),color='lightgrey')
-        ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
+        if X['unit'] == 'SI':
+            ax1.set_ylabel('Am$^2$ T$^{-2}$',fontsize=14)
+        elif X['unit'] == 'cgs':
+            ax1.set_ylabel('emu Oe$^{-2}$',fontsize=14)            
     
     ax1.tick_params(axis='both',which='major',direction='out',length=5,width=1,color='k',labelsize='14')
     ax1.tick_params(axis='both',which='minor',direction='out',length=3.5,width=1,color='k')
 
-    ax1.set_xlabel('B$_\mathrm{u}$ [T]',fontsize=14)
+    if X['unit'] == 'SI':
+        ax1.set_xlabel('B$_\mathrm{u}$ [T]',fontsize=14)
+    elif X['unit'] == 'cgs':
+        ax1.set_xlabel('H$_\mathrm{u}$ [Oe]',fontsize=14)        
+    
     ax1.minorticks_on()
     ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
 

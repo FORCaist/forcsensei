@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: forcsensei
-Version: 1.1.1
+Version: 1.1.2
 Summary: The FORCsensei package
 Home-page: https://github.com/FORCaist
 Author: FORCaist
@@ -8,7 +8,7 @@ Author-email: FORCaist.user@gmail.com
 License: UNKNOWN
 Description: # Welcome to FORCsensei
         Full details of the FORCsensei package can be found on our project webpage:
-        https://forcaist.github.io/FORCaist.github.io/
+        https://forcaist.github.io/
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License

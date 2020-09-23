@@ -105,25 +105,87 @@ def execute(X):
     if X["lpa"].value == True:
         X = remove_lpa(X)
     
+
+    #find when loop is open
+    X = find_Hopen(X)
+
     #extend FORCs
-    #X = FORC_extend(X)
+    #X = FORC_extend2(X)
 
     #perform lower branch subtraction
-    X = lowerbranch_subtract(X)
-    
+    X = lowerbranch_subtract(X)    
+
     fig = plt.figure(figsize=(12,8))
     ax1 = fig.add_subplot(121)
     X = plot_hysteresis(X,ax1)
     ax2 = fig.add_subplot(122)
     X = plot_delta_hysteresis(X,ax2)
     
+    #pl.dump(fig,open('hysteresis.pickle','wb'))
+    #pl.dump(ax1,open('hysteresis.pickle','wb'))
+
     outputfile = X["sample"].value+'_HYS.pdf'    
     plt.savefig(outputfile, bbox_inches="tight")
     plt.show()
     
+    X['hys_fig'] = fig
+
     return X
 
 #### PREPROCESSING ROUTINES ####
+
+def find_Hopen(X,dMlim=0.05):
+    
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
+    dH = X["dH"]
+    
+    Hmin = np.min(H)
+    Hmax = np.max(H)
+
+    Nbar = 10
+    nH = int((Hmax - Hmin)/dH)
+    Hi = np.linspace(Hmin,Hmax,nH*50+1)
+    Mi = np.empty(Hi.size)
+    
+    #perform basic loess
+    for i in range(Hi.size):
+        idx = (H>=Hi[i]-2.5*dH) & (H<=Hi[i]+2.5*dH)
+        Mbar = M[idx]
+        Hbar = H[idx]
+        Fbar = Fk[idx]
+        F0 = np.sort(np.unique(Fbar))
+        if F0.size>Nbar:
+            F0=F0[-Nbar]
+        else:
+            F0=np.min(F0)
+        idx = Fbar>=F0
+        
+        p = np.polyfit(Hbar[idx],Mbar[idx],2)
+        Mi[i] = np.polyval(p,Hi[i])
+    
+    Hlower = Hi
+    Mlower = Mi
+
+    idx0 = X['Fj']==1.0
+    idx1 = X['Fk']==np.max(X['Fk'])
+    
+    lower = np.interp(X['H'][idx0],Hlower,Mlower,left=np.nan,right=np.nan)
+
+    dM = X['M'][idx0]-lower
+    dM0 = np.interp(0,np.flip(X['H'][idx0]),np.flip(dM),left=np.nan,right=np.nan)
+
+    idx = (dM<=dMlim*dM0) & (X['H'][idx0]<0)
+    Hopen = -np.max(X['H'][idx0][idx])
+
+
+    X['Hopen'] = Hopen
+    
+    return X
+
 def remove_lpa(X):
     
     #unpack
@@ -208,6 +270,57 @@ def drift_correction(X):
     #repack
     X["M"] = M
   
+    return X
+
+def FORC_extend2(X):
+    
+    Ne = 5 #extend up to 20 measurement points backwards
+    
+    #unpack
+    H = X["H"]    
+    Hr = X["Hr"]
+    M = X["M"]
+    Fk = X["Fk"]
+    Fj = X["Fj"]
+    dH = X["dH"]
+    
+    for i in range(int(X['Fk'][-1])):
+        M0 = M[Fk==i+1]
+        H0 = H[Fk==i+1]
+        Hr0 = Hr[Fk==i+1][0]
+
+        H1 = np.flip(2*H0[0]-H0[1:])
+        M1 = np.flip(2*M0[0]-M0[1:])
+        #M1 = M0[0] - (np.flip(M0)[1:]-M0[0])
+        #H1 = H0[0] - (np.flip(H0)[1:]-H0[0])
+
+
+        if M1.size>Ne:
+            H1 = H1[-Ne-1:-1]
+            M1 = M1[-Ne-1:-1]
+        
+        if i==0:    
+            N_new = np.concatenate((M1,M0)).size
+            H_new = np.concatenate((H1,H0))
+            M_new = np.concatenate((M1,M0))
+            Hr_new = np.ones(N_new)*Hr0
+            Fk_new = np.ones(N_new)
+            Fj_new = np.arange(N_new)+1-M1.size
+        else:
+            N_new = np.concatenate((M1,M0)).size
+            H_new = np.concatenate((H_new,H1,H0))
+            M_new = np.concatenate((M_new,M1,M0))
+            Hr_new = np.concatenate((Hr_new,np.ones(N_new)*Hr0))
+            Fk_new = np.concatenate((Fk_new,np.ones(N_new)+i))
+            Fj_new = np.concatenate((Fj_new,np.arange(N_new)+1-M1.size))
+            
+    #pack up variables
+    X['H'] = H_new
+    X['Hr'] = Hr_new
+    X['M'] = M_new
+    X['Fk'] = Fk_new
+    X['Fj'] = Fj_new
+    
     return X
 
 def FORC_extend(X):
@@ -326,6 +439,8 @@ def lowerbranch_subtract(X):
     X["Fk"] = Fk
     X["Fj"] = Fj
     X["DM"] = Mcorr
+    #X["Hlower"] = Hi
+    #X["Mlower"] = Mi
     
     return X
 
@@ -363,9 +478,14 @@ def plot_hysteresis(X,ax):
     for i in range(5,int(np.max(Fk)),5):
     
         if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
-            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value/1000.0),'-k')        
+            if X['unit']=='SI':    
+                ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value/1000.0),'-k')
+            elif X['unit']=='cgs':           
+                ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value),'-k')        
         else: #SI not mass normalized (T and Am2)
-            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)],'-k')        
+            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)],'-k')
+            ax.plot(H[(Fk==i) & (Fj<=0)],M[(Fk==i) & (Fj<=0)],'-r')
+
 
     ax.grid(False)
     ax.minorticks_on()
@@ -397,18 +517,27 @@ def plot_hysteresis(X,ax):
     ax.set_xlim([-xmax,xmax])
 
     #label x-axis
-    ax.set_xlabel(r'B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
+    if X['unit']=='SI':
+        ax.set_xlabel(r'B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
+    elif X['unit']=='cgs':
+        ax.set_xlabel(r'H [Oe]',horizontalalignment='right', position=(1,25), fontsize=14)
 
     #label y-axis according to unit system
     if X["mass"].value > 0.0:
-        ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        if X['unit']=='SI':    
+            ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        elif X['unit']=='cgs':
+            ax.set_ylabel(r'M [emu/g]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
     else: 
-        ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top', position=(25,0.9), labelpad=20,fontsize=14,**hfont)
+        if X['unit']=='SI':    
+            ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        elif X['unit']=='cgs':
+            ax.set_ylabel(r'M [emu]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
 
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
 
     X["xmax"]=xmax
-    
+    X["hys_ax"] = ax
     return X
 
 def plot_delta_hysteresis(X,ax):
@@ -424,9 +553,14 @@ def plot_delta_hysteresis(X,ax):
     for i in range(5,int(np.max(Fk)),5):
     
         if X["mass"].value > 0.0: #SI and mass normalized (T and Am2/kg)
-            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value/1000.0),'-k')        
+            if X['unit'] == 'SI':
+                ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value/1000.0),'-k')
+            elif X['unit'] == 'cgs':
+                ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)]/(X["mass"].value),'-k')        
         else: #SI not mass normalized (T and Am2)
-            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)],'-k') 
+            ax.plot(H[(Fk==i) & (Fj>0)],M[(Fk==i) & (Fj>0)],'-k')
+            ax.plot(H[(Fk==i) & (Fj<=0)],M[(Fk==i) & (Fj<=0)],'-r')
+ 
       
     ax.grid(False)
     ax.minorticks_on()
@@ -454,23 +588,36 @@ def plot_delta_hysteresis(X,ax):
     ax.spines['top'].set_color('none')
     ax.xaxis.tick_bottom()
 
-    Xticks = ax.get_xticks()
-    Xidx = np.argwhere(np.abs(Xticks)>0.01)
-    ax.set_xticks(Xticks[Xidx])
+    #Xticks = ax.get_xticks()
+    #Xidx = np.argwhere(np.abs(Xticks)>0.01)
+    #ax.set_xticks(Xticks[Xidx])
+    ax.set_xticks(X['hys_ax'].get_xticks())
 
-    xmax = X["xmax"]
-    ax.set_xlim([-xmax,xmax])
-    
-    #label x-axis according to unit system
-    ax.set_xlabel('B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
+    #xmax = X["xmax"]
+    #ax.set_xlim([-xmax,xmax])
+    ax.set_xlim(X['hys_ax'].get_xlim())
+
+    #label x-axis
+    if X['unit']=='SI':
+        ax.set_xlabel(r'B [T]',horizontalalignment='right', position=(1,25), fontsize=14)
+    elif X['unit']=='cgs':
+        ax.set_xlabel(r'H [Oe]',horizontalalignment='right', position=(1,25), fontsize=14)
 
     #label y-axis according to unit system
     if X["mass"].value > 0.0:
-        ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top',position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        if X['unit']=='SI':    
+            ax.set_ylabel(r'M [Am$^2$/kg]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        elif X['unit']=='cgs':
+            ax.set_ylabel(r'M [emu/g]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
     else: 
-        ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top',position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        if X['unit']=='SI':    
+            ax.set_ylabel(r'M [Am$^2$]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
+        elif X['unit']=='cgs':
+            ax.set_ylabel(r'M [emu]',verticalalignment='top', position=(25,0.9), labelpad=20, fontsize=14,**hfont)
 
     ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2e'))
     
+    #X["delta_ax"] = ax
+
     return X
 

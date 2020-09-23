@@ -14,10 +14,10 @@ def header_keywords(X):
     keywords['mass'] = ('Mass:','Mass ','Mass           =')
     defaults['mass'] = 'N/A'
     
-    keywords['pause at reversal'] = ('Pause at reversal fields:','PauseRvrsl','PauseNtl       =','PauseNtl ')
+    keywords['pause at reversal'] = ('Pause at reversal fields:','PauseRvrsl','PauseNtl       =','PauseNtl ','PauseNtl		=')
     defaults['pause at reversal'] = 'N/A'
     
-    keywords['averaging time'] = ('Averaging time:','Averaging time ','Averaging time =')
+    keywords['averaging time'] = ('Averaging time:','Averaging time ','Averaging time =','Averaging time		=')
     defaults['averaging time'] = 'N/A'
     
     keywords['pause at calibration'] = ('Pause at calibration field:','PauseCal','PauseCal       =')
@@ -50,7 +50,7 @@ def header_keywords(X):
     keywords['number of rows'] = ('Number of data','NData')
     defaults['number of rows'] = 'N/A'
 
-    keywords['calibration field'] = ('HCal','HCal           =')
+    keywords['calibration field'] = ('HCal','HCal           =','HCal			=')
     defaults['calibration field'] = 'N/A'
     
     X['keywords'] = keywords
@@ -149,9 +149,9 @@ def parse_measurements(X):
         Htemp = np.array(df['Field (µ0H) [T]'])
         Mtemp = np.array(df['Moment (m) [A·m²]'])
         ttemp = np.array(df['Time Stamp [s]'])
-        if Hcalib == 'N/A':
-            Hcalib = Htemp[0]
-        idx = np.argwhere((Htemp[1:]<Htemp[:-1]) & (np.abs(Htemp[1:]-Hcalib)>0.0025)) #index of all calibration points
+        #if Hcalib == 'N/A':
+        Hcalib = Htemp[0]
+        idx = np.argwhere((Htemp[1:]<Htemp[:-1]) & (np.abs(Htemp[1:]-Hcalib)/Hcalib>0.001)) #index of all calibration points
 
         #create last FORC first
         M = Mtemp[int(idx[-1])+1:]
@@ -172,14 +172,19 @@ def parse_measurements(X):
 
     else:
         skiprows = line_num_for_starting_data_line(X['fn'])
+        if skiprows>200:
+            skiprows = line_num_for_phrase_in_file(',', X['fn'])
         nrows = parse_header(X['keywords'],X['defaults'],'number of rows',X['fn'])
         df = pd.read_csv(X['fn'],skiprows=skiprows,encoding='latin9',header=None,nrows=nrows)
         temp = np.array(df)
         Htemp = temp[:,0]
         Mtemp = temp[:,1]
-        if Hcalib == 'N/A':
-            Hcalib = Htemp[0]
-        idx = np.argwhere((Htemp[1:]<Htemp[:-1]) & (np.abs(Htemp[1:]-Hcalib)>0.005)) #index of all calibration points
+        
+        #if Hcalib == 'N/A':
+        Hcalib = Htemp[0]
+
+        #idx = np.argwhere((Htemp[1:]<Htemp[:-1]) & (np.abs(Htemp[1:]-Hcalib)>0.005)) #index of all calibration points
+        idx = np.argwhere((Htemp[1:]<Htemp[:-1]) & (np.abs(Htemp[1:]-Hcalib)/Hcalib>0.001)) #index of all calibration points - testing
 
         #create last FORC first
         M = Mtemp[int(idx[-1])+1:]
@@ -298,20 +303,30 @@ def parse_calibration(X):
         Htemp = np.array(df['Field (µ0H) [T]'])
         Mtemp = np.array(df['Moment (m) [A·m²]'])
         ttemp = np.array(df['Time Stamp [s]'])
-        if Hcalib == 'N/A':
-            Hcalib = Htemp[0]
-        idx = np.argwhere(np.abs(Htemp-Hcalib)<0.001)
+        #if Hcalib == 'N/A':
+        Hcalib = Htemp[0]
+        #idx = np.argwhere(np.abs(Htemp-Hcalib)<0.001)
+        idx = np.argwhere(np.abs(Htemp-Hcalib)/Hcalib<0.001)
         Hcal, Mcal, tcal = Htemp[idx], Mtemp[idx], ttemp[idx]
     else: #no timestamp - old file format, find line starting with "+"
         skiprows = line_num_for_starting_data_line(X['fn'])
+        
+        if skiprows>200:
+            skiprows = line_num_for_phrase_in_file(',', X['fn'])
+
+        
         nrows = parse_header(X['keywords'],X['defaults'],'number of rows',X['fn'])
         df = pd.read_csv(X['fn'],skiprows=skiprows,encoding='latin9',header=None,nrows=nrows)
         temp = np.array(df)
         Htemp = temp[:,0]
         Mtemp = temp[:,1]
-        if Hcalib == 'N/A':
-            Hcalib = Htemp[0]
-        idx = np.argwhere(np.abs(Htemp-Hcalib)<0.001)
+        
+        #if Hcalib == 'N/A':
+        Hcalib = Htemp[0]
+        
+        
+        #idx = np.argwhere(np.abs(Htemp-Hcalib)<0.001)
+        idx = np.argwhere(np.abs(Htemp-Hcalib)/Hcalib<0.001)
         Hcal, Mcal = Htemp[idx], Mtemp[idx]
         tcal = calibration_times(X, len(Hcal))
     
