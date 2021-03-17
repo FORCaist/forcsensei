@@ -2,6 +2,7 @@ import pandas as pd
 import codecs as cd
 import numpy as np
 
+
 #### NEW ROUTINES JAN2020 ####
 def header_keywords(X):
 
@@ -17,7 +18,7 @@ def header_keywords(X):
     keywords['pause at reversal'] = ('Pause at reversal fields:','PauseRvrsl','PauseNtl       =','PauseNtl ','PauseNtl		=')
     defaults['pause at reversal'] = 'N/A'
     
-    keywords['averaging time'] = ('Averaging time:','Averaging time ','Averaging time =','Averaging time		=')
+    keywords['averaging time'] = ('Averaging time		','Averaging time:','Averaging time ','Averaging time =','Averaging time		=')
     defaults['averaging time'] = 'N/A'
     
     keywords['pause at calibration'] = ('Pause at calibration field:','PauseCal','PauseCal       =')
@@ -175,10 +176,19 @@ def parse_measurements(X):
         if skiprows>200:
             skiprows = line_num_for_phrase_in_file(',', X['fn'])
         nrows = parse_header(X['keywords'],X['defaults'],'number of rows',X['fn'])
+        
+        if nrows == "N/A":
+            f = cd.open(X['fn'],'r',encoding='latin9')
+            Xf = f.read()
+            nrows = Xf.count(",")
+            
+        
         df = pd.read_csv(X['fn'],skiprows=skiprows,encoding='latin9',header=None,nrows=nrows)
         temp = np.array(df)
         Htemp = temp[:,0]
         Mtemp = temp[:,1]
+
+
         
         #if Hcalib == 'N/A':
         Hcalib = Htemp[0]
@@ -259,6 +269,9 @@ def measurement_times(X,Fk,Fj):
     unit = parse_header(X['keywords'],X['defaults'],'units',X['fn'])
     tr=parse_header(X['keywords'],X['defaults'],'pause at reversal',X['fn'])
     tau=parse_header(X['keywords'],X['defaults'],'averaging time',X['fn'])
+    if tau=="N/A":
+        tau = 0.2
+    
     tcal=parse_header(X['keywords'],X['defaults'],'pause at calibration',X['fn'])
     ts=parse_header(X['keywords'],X['defaults'],'pause at saturation',X['fn'])
     alpha=parse_header(X['keywords'],X['defaults'],'field slewrate',X['fn'])
@@ -316,6 +329,12 @@ def parse_calibration(X):
 
         
         nrows = parse_header(X['keywords'],X['defaults'],'number of rows',X['fn'])
+        
+        if nrows == "N/A":
+            f = cd.open(X['fn'],'r',encoding='latin9')
+            Xf = f.read()
+            nrows = Xf.count(",")
+        
         df = pd.read_csv(X['fn'],skiprows=skiprows,encoding='latin9',header=None,nrows=nrows)
         temp = np.array(df)
         Htemp = temp[:,0]
@@ -323,7 +342,6 @@ def parse_calibration(X):
         
         #if Hcalib == 'N/A':
         Hcalib = Htemp[0]
-        
         
         #idx = np.argwhere(np.abs(Htemp-Hcalib)<0.001)
         idx = np.argwhere(np.abs(Htemp-Hcalib)/Hcalib<0.001)
@@ -349,6 +367,8 @@ def calibration_times(X, Npts):
     unit = parse_header(X['keywords'],X['defaults'],'units',X['fn'])
     tr=parse_header(X['keywords'],X['defaults'],'pause at reversal',X['fn'])
     tau=parse_header(X['keywords'],X['defaults'],'averaging time',X['fn'])
+    if tau=="N/A":
+        tau = 0.2
     tcal=parse_header(X['keywords'],X['defaults'],'pause at calibration',X['fn'])
     ts=parse_header(X['keywords'],X['defaults'],'pause at saturation',X['fn'])
     alpha=parse_header(X['keywords'],X['defaults'],'field slewrate',X['fn'])
