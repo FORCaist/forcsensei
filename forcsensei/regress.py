@@ -82,7 +82,9 @@ def options(X):
     )
 
     constraint_widge = widgets.Checkbox(value=False, description='Assume $Sc_0$ = $Su_0$',style=style)
-    constraint_html = widgets.HTML(value='Check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#AssumeS" target="_blank">FORCsensei FAQ</a> for more information about the &nbsp;Sc<sub>0</sub> = Sb<sub>0</sub> option')
+    constraint_html = widgets.HTML(value='Check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#AssumeS" target="_blank">FORCsensei FAQ</a> for more information about the &nbsp;Sc<sub>0</sub> = Su<sub>0</sub> option')
+    constraint_widge1 = widgets.Checkbox(value=False, description='Assume $Sc_1$ = $Su_1$',style=style)
+    constraint_html1 = widgets.HTML(value='Check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#AssumeS1" target="_blank">FORCsensei FAQ</a> for more information about the &nbsp;Sc<sub>1</sub> = Su<sub>1</sub> option')
 
     pike_widge = widgets.Checkbox(value=False, description='Assume $Sc_0$ = $Su_0$ = $Sc_1$ = $Su_1$ and $\lambda$ = 0',style=style)
 
@@ -112,7 +114,7 @@ def options(X):
     )
     
     #display number of models to compare
-    model_widge = widgets.interactive_output(variforc_array_size, {'SC': Sc_widge, 'SB': Sb_widge, 'L': lambda_widge, 'CN': constraint_widge, 'PK': pike_widge})
+    model_widge = widgets.interactive_output(variforc_array_size, {'SC': Sc_widge, 'SB': Sb_widge, 'L': lambda_widge, 'CN': constraint_widge,'CN1': constraint_widge1, 'PK': pike_widge})
 
     #display FAQ information about progress bar
     progress_html = widgets.HTML(value='Model comparison can take some time, check <a href="https://forcaist.github.io/FORCaist.github.io/dfaq.html#progress" target="_blank">FORCsensei FAQ</a> for information about monitoring progress of the calculation')
@@ -120,7 +122,7 @@ def options(X):
 
     #combined widget
     DS = VBox([down_title,down_widge])
-    SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambda_widge,HBox([constraint_widge,constraint_html]),pike_widge,model_widge,progress_html])
+    SC = VBox([M_title,M_widge,HL,S_title,Sc_widge,Sb_widge,lambda_widge,HBox([constraint_widge,constraint_html]),HBox([constraint_widge1,constraint_html1]),pike_widge,model_widge,progress_html])
     
     ### Setup Multiprocessing tab ####################
     X['ncore']=4
@@ -159,6 +161,7 @@ def options(X):
     
     ### SETUP OUTPUT ####
     X['constraint']=constraint_widge
+    X['constraint1']=constraint_widge1
     X['pike']=pike_widge
     X['Mtype']=M_widge
     X['SC']=Sc_widge
@@ -656,7 +659,7 @@ def Bayes_factor(N,R2,order=1,B=0):
     return BF, B
 
     #### HELPER FUNCTIONS ####
-def variforc_array_size(SC,SB,L,CN,PK): #array of variforc smoothing parameter
+def variforc_array_size(SC,SB,L,CN,CN1,PK): #array of variforc smoothing parameter
 
     Sc_min = SC[0]
     Sc_max = SC[1]
@@ -685,10 +688,26 @@ def variforc_array_size(SC,SB,L,CN,PK): #array of variforc smoothing parameter
         Sb1 = np.matrix.flatten(Sb1)
         L = np.zeros((Sb1.size,3))    
 
+    
+    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+    
     if CN==True:
         idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0))
-    else:
-        idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+    #else:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+
+    if CN1==True:
+        idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc1==Sb1))
+    #else:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+
+    if ((CN==True) & (CN1==True)):
+        idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0) & (Sc1==Sb1))
+    
+    #if CN==True:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0))
+    #else:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
 
     if PK==True:
         idx = ((Sc1==Sc0) & (Sb1==Sb0) & (Sc0==Sb0)  & (Sb1==Sb1)  & (L<0.0001))
@@ -705,6 +724,7 @@ def variforc_array(X): #array of variforc smoothing parameter
     Lambda_min = X['lambda'].value[0]
     Lambda_max = X['lambda'].value[1]
     CN = X['constraint'].value
+    CN1 = X['constraint1'].value
     PK = X['pike'].value
 
     num = 6
@@ -729,10 +749,20 @@ def variforc_array(X): #array of variforc smoothing parameter
         Sb1 = np.matrix.flatten(Sb1)
         L = np.zeros((Sb1.size,3))    
 
+    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+    
     if CN==True:
         idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0))
-    else:
-        idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+    #else:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+
+    if CN1==True:
+        idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc1==Sb1))
+    #else:
+    #    idx = ((Sc1>=Sc0) & (Sb1>=Sb0))
+
+    if ((CN==True) & (CN1==True)):
+        idx = ((Sc1>=Sc0) & (Sb1>=Sb0) & (Sc0==Sb0) & (Sc1==Sb1))
 
     if PK==True:
         idx = ((Sc1==Sc0) & (Sb1==Sb0) & (Sc0==Sb0)  & (Sb1==Sb1)  & (L<0.0001))
